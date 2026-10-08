@@ -1,0 +1,12 @@
+duckdb>=1.0
+fastapi>=0.110
+uvicorn[standard]>=0.29
+python-multipart>=0.0.9
+httpx>=0.27
+evtx>=0.8
+# opcional: pestaña MCP
+mcp>=1.0
+# opcional: pestañas Sigma y LOL (ejecutar reglas Sigma)
+pysigma>=0.11
+# opcional: GeoIP/ASN (país/ISP de IPs en el Resumen)
+maxminddb>=2.2

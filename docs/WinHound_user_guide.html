@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WinHound — User guide</title>
+<style>
+:root{--bg:#132743;--panel:#1b3357;--panel2:#23416b;--border:#345681;--fg:#eaf1fb;--muted:#a3b6d4;--accent:#5fa3ff;--ink:#07192f;--ok:#56d364;--warn:#e3b341;--bad:#ff7b72;--mono:ui-monospace,SFMono-Regular,Menlo,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 system-ui,sans-serif}
+header{padding:30px 32px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,#1d3860,#132743)}
+h1{margin:0;font-size:26px}
+.sub{color:var(--muted);margin-top:6px}
+.wrap{max-width:900px;margin:0 auto;padding:28px 24px 80px}
+nav{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin:20px 0 28px}
+nav b{color:var(--accent);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+nav a{color:var(--fg);text-decoration:none;display:inline-block;margin:4px 14px 4px 0;font-size:14px}
+nav a:hover{color:var(--accent)}
+h2{font-size:20px;margin:34px 0 10px;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:6px}
+h3{font-size:15px;margin:20px 0 6px;color:var(--fg)}
+code{background:var(--panel2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-family:var(--mono);font-size:13px}
+pre{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 16px;overflow:auto;font-family:var(--mono);font-size:13px;line-height:1.5}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:14px}
+th,td{border:1px solid var(--border);padding:7px 11px;text-align:left;vertical-align:top}
+th{background:var(--panel2)}
+td code{font-size:12px}
+.tip{background:var(--panel);border-left:4px solid var(--accent);border-radius:0 8px 8px 0;padding:10px 14px;margin:12px 0}
+.warn{border-left-color:var(--warn)}
+.muted{color:var(--muted)}
+ul{margin:8px 0;padding-left:22px}li{margin:4px 0}
+footer{border-top:1px solid var(--border);margin-top:40px;padding-top:16px;color:var(--muted);font-size:13px;text-align:center}
+footer b{color:var(--accent)}
+.pill{font-family:var(--mono);font-size:11px;border:1px solid var(--border);border-radius:999px;padding:2px 9px;color:var(--muted)}
+</style></head>
+<body>
+<header>
+ <h1>🐕 WinHound — User guide</h1>
+ <div class="sub">Windows EVTX forensic analyzer · parse, hunt, Sigma, LOLs · offline, local DuckDB</div>
+</header>
+<div class="wrap">
+
+<nav><b>Contents</b><br>
+ <a href="#what">What it is</a>
+ <a href="#install">Install &amp; run</a>
+ <a href="#load">Load EVTX</a>
+ <a href="#tabs">Interface &amp; tabs</a>
+ <a href="#model">Data model</a>
+ <a href="#explorer">Explorer &amp; SQL</a>
+ <a href="#ioc">IOC sweep</a>
+ <a href="#sigma">Sigma</a>
+ <a href="#lol">LOL tabs</a>
+ <a href="#attack">ATT&amp;CK matrix</a>
+ <a href="#lookalike">Lookalike</a>
+ <a href="#phase2">Proc tree / Logons / Persistence / PowerShell</a>
+ <a href="#network">Network</a>
+ <a href="#overview">Overview &amp; GeoIP</a>
+ <a href="#marks">Marks</a>
+ <a href="#report">Report</a>
+ <a href="#aimcp">AI &amp; MCP</a>
+ <a href="#sql">SQL recipes</a>
+ <a href="#faq">Notes &amp; FAQ</a>
+</nav>
+
+<h2 id="what">What it is</h2>
+<p>WinHound is the Windows sibling of <i>Longanizer</i>. It parses Windows
+Event Logs (<code>.evtx</code>) into a single normalized <code>events</code> table
+(DuckDB, UTC) and lets you search, run Sigma, hunt living-off-the-land activity,
+rebuild process trees and produce a case report — all in a local web UI, offline.</p>
+<p>Built for Sysmon-rich telemetry (SwiftOnSecurity-style configs) but ingests
+<b>any</b> channel (Security, System, PowerShell/Operational, TaskScheduler, …).</p>
+
+<h2 id="install">Install &amp; run</h2>
+<pre>pip install --break-system-packages -r requirements.txt
+python run.py            # http://127.0.0.1:8000</pre>
+<ul>
+ <li><code>evtx</code> (Rust parser) and <code>pysigma</code>/<code>maxminddb</code> install from PyPI as prebuilt wheels.</li>
+ <li>Set the case file explicitly with <code>DUCKDB_PATH=case.duckdb python run.py</code>; otherwise a timestamped case is created under <code>casos/</code> on first ingest.</li>
+</ul>
+<div class="tip">Everything runs on the machine you launch it on. No cloud, no outbound calls except the optional GeoIP database download.</div>
+
+<h2 id="load">Load EVTX</h2>
+<p>On the <b>Load</b> tab you have three ways in:</p>
+<ul>
+ <li><b>Upload</b> individual <code>.evtx</code>, a whole <b>folder</b> (the entire tree), or a <code>.zip</code>/<code>.tar.gz</code> — EVTX are found recursively, non-EVTX are skipped.</li>
+ <li><b>Server path</b>: point to a folder/file/archive already on the server's disk — faster (no browser upload) and shows <b>live progress</b> (files + events).</li>
+ <li><b>Open a saved case</b>: reopen a <code>.duckdb</code> from <code>casos/</code> instantly, no re-ingest.</li>
+</ul>
+<p>CLI equivalent:</p>
+<pre>python -m winhound.cli ingest C:\triage\  --db case.duckdb
+python -m winhound.cli stats --db case.duckdb</pre>
+<p class="muted">~600–700 MB of EVTX ingest comfortably (Rust parser + bulk insert). EVTX timestamps are already UTC — no timezone handling needed.</p>
+<div class="tip"><b>Sample data included.</b> 562 attack EVTX ship in <code>samples/evtx-attack-samples.zip</code> (Sysmon + Security/System/PowerShell/RDP/BITS/Defender and more channels). Unzip it and load the <code>evtx-attack-samples/</code> folder, or point either loader straight at the <code>.zip</code>. Everything in this guide was tested against that dataset.</div>
+
+<h2 id="tabs">Interface &amp; tabs</h2>
+<p>The top tab bar groups related views under <b>parent tabs</b>. Clicking a parent
+opens a <b>sub-bar</b> with its children:</p>
+<ul>
+ <li><b>AI&nbsp;▾</b> — AI API · AI local · MCP</li>
+ <li><b>Sigma &amp; LOL&nbsp;▾</b> — Sigma rules · LOLBAS · LOLDrivers · LOLRMM · LOTTunnels · HijackLibs · Lookalike · ATT&amp;CK matrix</li>
+ <li><b>Hunting&nbsp;▾</b> — Proc tree · Logons · Persistence · PowerShell · Network</li>
+</ul>
+<p>Standalone tabs stay on the main bar: <span class="pill">Load</span>
+<span class="pill">Overview</span> <span class="pill">Explorer</span>
+<span class="pill">IOC sweep</span> <span class="pill">SQL</span>
+<span class="pill">Marks</span> <span class="pill">Help</span>.</p>
+
+<h2 id="model">Data model</h2>
+<p>Each record maps to columns + an <code>extra</code> JSON blob + the full raw record:</p>
+<table>
+<tr><th>Area</th><th>EVTX source → column</th></tr>
+<tr><td>System</td><td><code>TimeCreated</code>→<code>ts</code> (UTC) · <code>Channel</code>→<code>source</code> · <code>Provider</code>→<code>program</code> · <code>EventID</code>→<code>event</code>/<code>eid</code> · <code>Computer</code>→<code>host</code> · <code>Security.UserID</code>→<code>sid</code> · <code>Level</code>→<code>level</code></td></tr>
+<tr><td>EventData (first-class)</td><td><code>Image</code>, <code>CommandLine</code>, <code>ParentImage</code>, <code>OriginalFileName</code>, <code>Hashes</code>, <code>TargetFilename</code>, <code>ImageLoaded</code>, <code>DestinationIp</code>, <code>SourceIp</code>, <code>LogonType</code>, <code>user</code></td></tr>
+<tr><td>EventData (rest)</td><td>→ <code>extra</code> (JSON) — reach it with <code>extra-&gt;&gt;'FieldName'</code> and turn it into a column in the Explorer</td></tr>
+<tr><td>Whole record</td><td>→ <code>raw</code> (JSON) for full inspection</td></tr>
+</table>
+<p>First-class vs <code>extra</code> is only about <b>speed</b> (native column sorts/filters faster on huge data), not availability — every field is reachable.</p>
+
+<h2 id="explorer">Explorer &amp; SQL</h2>
+<ul>
+ <li><b>Search</b> any text (IOC, IP, hash, command, Image). Multiple words = AND. Toggle <b>regex</b>. The <b>Channel</b> dropdown narrows the source.</li>
+ <li><b>Time range (global)</b>: the <b>From</b>/<b>To</b> (UTC) inputs in the toolbar apply to <b>both</b> search results and the full timeline — set a window once and every view respects it.</li>
+ <li><b>Context</b>: click a row (or jump by <code>#</code>) to see ±N events around it on the timeline.</li>
+ <li><b>Copy full event</b>: the first column of every row (Explorer, timeline, context, IOC and Network tables) is a <b>⧉ copy button</b> that puts the full event JSON on your clipboard; the context header also has a <b>⧉ Copy event JSON</b> button.</li>
+ <li><b>＋ add to review</b>: the Explorer, timeline and context rows carry this button too — one click marks the event <b>pending</b> in the <a href="#marks">Marks</a> tab, the same fast "to review later" pile you build from the Sigma and Hunting views.</li>
+ <li><b>⬇ CSV</b>: export the currently loaded rows straight from Explorer, the timeline, Network and the IOC summary.</li>
+ <li><b>Columns</b> panel: first-class columns plus <b>every</b> <code>extra</code> key (born hidden). Windows has hundreds of keys — use the <b>filter box</b> to find them, then click to show and sort.</li>
+ <li><b>SQL</b> tab: free DuckDB over <code>events</code>; reach EventData with <code>extra-&gt;&gt;'Key'</code>.</li>
+</ul>
+<div class="tip"><b>Fast on big cases.</b> Only the <b>visible</b> columns are rendered — hidden extra-JSON keys are no longer emitted as empty cells. Long cell values are truncated with the full value on hover, the default page size is <b>500</b> rows, and the time-window context is capped so the UI stays responsive even with hundreds of thousands of events.</div>
+
+<h2 id="ioc">IOC sweep</h2>
+<p>A standalone tab for triaging a <b>list</b> of indicators at once. Paste your IOCs
+— one per line, or comma / semicolon separated — mixing <b>IPs, hashes, file names,
+domains and users</b>, and sweep the whole dataset in a single pass.</p>
+<ul>
+ <li>Each IOC gets a row with its <b>hit count</b> and a <b>sample</b> match.</li>
+ <li>Matching checks the relevant first-class fields <b>and</b> the raw event, so an indicator is found wherever it appears.</li>
+ <li><b>⬇ CSV</b> exports the summary for your report or ticket.</li>
+ <li>Hit rows carry the same <b>⧉ copy</b> / <b>＋ add to review</b> actions, so a present indicator goes straight onto the <a href="#marks">Marks</a> pile.</li>
+</ul>
+<div class="tip">Ideal for a batch of indicators from a threat-intel report or a previous case — one paste tells you which ones are present and how often.</div>
+
+<h2 id="sigma">Sigma</h2>
+<p>The <b>Sigma</b> tab runs your <i>general</i> ruleset over the EVTX. Field taxonomy
+is Sysmon/Windows; logsources map to channels/EventIDs:</p>
+<ul>
+ <li><code>process_creation</code> → Sysmon <b>EID1</b> <i>and</i> Security <b>4688</b> (aliases <code>NewProcessName</code>→<code>Image</code>, etc.).</li>
+ <li><code>image_load</code>→EID7, <code>driver_load</code>→EID6, <code>network_connection</code>→EID3, <code>registry_event</code>→12/13/14, <code>dns_query</code>→22, <code>ps_script</code>→4104, <code>logon</code>→4624/4625…</li>
+ <li>Rules that filter directly by <code>Channel</code> and <code>EventID</code> (no category) also run.</li>
+</ul>
+<p>Load a rules folder on the server, press <b>Run</b> (live progress). Findings are grouped by rule, each expandable to the matching events with a <b>what matched</b> column. Correlation rules (event_count / value_count / temporal) are supported.</p>
+<h3>Row actions</h3>
+<p>Every hit row carries an <b>actions cell</b> with three buttons so you never leave the finding to work it:</p>
+<ul>
+ <li><b>⧉ copy</b> — the full event JSON to your clipboard.</li>
+ <li><b>＋ add to review</b> — marks the event <b>pending</b> in the <a href="#marks">Marks</a> tab in one click, building your "to review later" pile as you hunt.</li>
+ <li><b>⊛ view structured raw</b> — expands the full <b>pretty-printed raw event</b> right under the row, so you read the whole record instead of only the <b>what matched</b> column; click again to collapse.</li>
+</ul>
+<h3>Rule content (YAML)</h3>
+<p>When you <b>expand a rule's detections</b>, the panel also shows a collapsible
+<b>rule content (YAML)</b> block with the full rule — <code>logsource</code>,
+<code>detection</code> and metadata — so you can see exactly what the rule does
+next to its hits.</p>
+<div class="tip"><b>Loading progress.</b> Pointing a tab at a rules folder now shows a <b>progress bar</b> as it parses the rules file by file — in the Sigma tab and in every LOL tab. Running the rules already reported per-rule progress.</div>
+
+<h2 id="lol">LOL tabs</h2>
+<p>One tab per family: <span class="pill">LOLBAS</span> <span class="pill">LOLDrivers</span>
+<span class="pill">LOLRMM</span> <span class="pill">HijackLibs</span> <span class="pill">LOTTunnels</span>.
+Each tab:</p>
+<ul>
+ <li>asks for <b>its own rules folder</b> (you supply the Sigma rules);</li>
+ <li>shows findings exactly like the Sigma tab — same per-row <b>⧉ copy</b> / <b>＋ add to review</b> / <b>⊛ view structured raw</b> actions and the collapsible <b>rule content (YAML)</b> block;</li>
+ <li><b>plus a chart</b> of the top indicator by number of events that hit — binary (LOLBAS), driver (LOLDrivers), tool (LOLRMM), DLL (HijackLibs), tunnel tool (LOTTunnels).</li>
+</ul>
+<p class="muted">Detection is 100% your rules — the app pulls no external datasets.</p>
+
+<h2 id="attack">ATT&amp;CK matrix</h2>
+<p>Under <b>Sigma &amp; LOL</b>, the ATT&amp;CK matrix turns the case's matched Sigma
+rules into coverage. It collects the <code>attack.*</code> tags from <b>every loaded
+rule set</b> (general + each LOL tab) and lays the techniques out as a grid:</p>
+<ul>
+ <li><b>Columns = tactics</b>; techniques are grouped under their tactic.</li>
+ <li>Each cell is <b>colored by the worst rule level</b> that produced it, and the <b>number</b> is the matching event count.</li>
+ <li><b>Click a technique</b> to jump straight to a sample event in the Explorer.</li>
+</ul>
+<div class="tip warn">Needs rules carrying <code>attack.*</code> tags — techniques only appear for matched rules that declare them, so the matrix reflects your ruleset's tagging, not full ATT&amp;CK.</div>
+
+<h2 id="lookalike">Lookalike (masquerading)</h2>
+<p>Finds executed binaries whose name is within a <b>Levenshtein distance</b> of a
+legitimate Windows/LOLBAS binary (<code>cmd2.exe</code>, <code>svch0st.exe</code>,
+<code>scvhost.exe</code>). Pick the max distance; optionally also compare the seen
+binaries against each other. Exact matches (the real ones) are excluded.
+Binaries are now gathered from <b>all sources</b> — Sysmon <code>Image</code>
+<i>and</i> Security 4688 <code>NewProcessName</code> — not just Sysmon.</p>
+<div class="tip warn">Distance 2 can surface coincidences (e.g. <code>osk.exe</code> vs <code>lsm.exe</code>). Distance 1 is the high-signal setting; always confirm in the Explorer.</div>
+
+<h2 id="phase2">Proc tree · Logons · Persistence · PowerShell</h2>
+<p class="muted">These live under the <b>Hunting&nbsp;▾</b> parent tab (together with Network, below).</p>
+<ul>
+ <li><b>Proc tree</b> — rebuilds process trees from <b>Sysmon EID1 <i>and</i> Security 4688</b> (Sigma <code>process_creation</code>). Processes are linked by <code>ProcessGuid</code>/<code>ParentProcessGuid</code> when present (Sysmon); otherwise by <b>PID</b> (<code>ProcessId</code>/<code>NewProcessId</code>, hex-normalized) within the same host and time order. When both Sysmon and 4688 log the same process the duplicate is merged, and each node shows its <b>source</b> (<code>sysmon</code> / <code>4688</code>). You <b>anchor it on a process</b>: type a <b>PID</b>, a <b>ProcessGuid</b> or an <b>image name</b> and press &laquo;Build tree&raquo; — it shows that process's <b>descendants plus its chain of ancestors</b>, instead of loading every tree. When a PID matches several processes (PIDs are reused) you get a small picker to &laquo;pin&raquo; the exact one; the anchored process is highlighted. Click a node to jump to its context.</li>
+ <li><b>Logons</b> — the whole <b>authentication family</b>, not just a handful of Security IDs: Security logons (4624/4625/4634/4647/4648/4672), <b>Kerberos</b> (4768/4769/4771), <b>NTLM</b> (4776) and <b>RDP</b> (4778/4779, TerminalServices-RemoteConnectionManager 1149, LocalSessionManager 21/22/24/25). User, source IP, workstation and auth are <b>normalized per source</b> so they line up across event types; failed logons highlighted. <b>Filter boxes</b> narrow by <b>user, type, source IP, workstation, auth and host</b> — combine them to drill in, &laquo;Clear&raquo; to reset.</li>
+ <li><b>Persistence</b> — very broad ASEP coverage across <b>Sysmon and native Windows logs</b>: ~<b>65 registry autostart</b> locations via Sysmon 12/13/14 <b>and</b> native Security 4657; the <b>Startup folder</b> and dropped <b>scheduled-task XML</b> (Sysmon 11); <b>services</b> (System 7045 / Security 4697 / start-type 7040); <b>scheduled tasks</b> (Security 4698–4702 + TaskScheduler 106/140/141/200/201); <b>WMI</b> subscriptions (Sysmon 19/20/21 + WMI-Activity 5859/5861); <b>account</b> creation and privileged <b>group</b> changes (4720/4722/4728/4732/4738/4756); and <b>BITS</b> jobs (Bits-Client 3). Each row shows the triggering EventID and host; a client-side filter box narrows by type/detail.</li>
+ <li><b>PowerShell</b> — 4104 script blocks, reassembled across parts (needs script-block logging in the source host). A <b>search box</b> filters by string: type a substring and only the script blocks whose reassembled text contains it are returned, with the <b>match highlighted</b>. Scripts render as event-like rows (ts / host / user / parts); click one to jump to its context.</li>
+</ul>
+<p>Every result row across the Hunting views (Proc tree, Logons, Persistence, PowerShell, Network) carries the same <b>⧉ copy</b> and <b>＋ add to review</b> buttons as the Sigma findings — so you can one-click a suspicious process, logon or script block onto the <a href="#marks">Marks</a> pile without breaking your hunt.</p>
+<p class="muted">Context lookups (clicking a log to see what surrounds it) are backed by a materialised timeline index, so they stay fast even with hundreds of thousands of events loaded.</p>
+
+<h2 id="network">Network</h2>
+<p>Also under <b>Hunting&nbsp;▾</b>, the Network tab unifies connection telemetry from
+both Sysmon and native Windows:</p>
+<ul>
+ <li><b>Sysmon</b> — EID3 (network connections) and EID22 (DNS queries).</li>
+ <li><b>Windows Filtering Platform</b> — Security 5156/5157 (allow / block) and 5158 (bind).</li>
+</ul>
+<p>Protocol and direction are <b>normalized per source</b> so rows from different
+providers are comparable. Filter by <b>IP/host, port, protocol, process</b> and
+<b>kind</b>, copy any row's full event JSON with the <b>⧉</b> button, and export the
+loaded rows with <b>⬇ CSV</b>.</p>
+
+<h2 id="overview">Overview &amp; GeoIP</h2>
+<p>Case at a glance: counts, events-per-hour, and tops of EventID, Image, host, user,
+logon type and channel. Source and destination IPs are tagged <b>internal</b>
+(RFC1918/loopback/link-local) or <b>external</b>; with the free <b>DB-IP Lite</b>
+database (one button, then offline) you also get country, ASN and ISP, plus
+<i>Top ISP</i> and <i>Top countries</i>. Click any IP for a detail view
+(first/last seen, by channel, users, sample events).</p>
+
+<h2 id="marks">Marks (triage)</h2>
+<p>Mark events <b>pending / TP / FP / dismissed</b> with a note, from the <b>Mark event</b>
+button in an event's context or by event number in the Marks tab. Marks are stored
+<b>inside the case <code>.duckdb</code></b>, so they travel with the case and persist.</p>
+<div class="tip">The <b>＋ add to review</b> button on finding, hunting, IOC, Explorer, timeline and context rows marks an event <b>pending</b> here in one click — the fast way to build a "to review later" pile while hunting, then come back to the Marks tab to triage it (set TP/FP/dismissed and add notes).</div>
+
+<h2 id="report">Report</h2>
+<p>From the Overview, <b>HTML report</b> / <b>Download report</b> builds a single
+self-contained HTML file: summary tiles, Sigma detections (collapsible, with
+matches), LOL findings with charts, persistence, logons, top IPs with GeoIP and
+triage marks. Everything is collapsed by default so it reads cleanly, and prints well.</p>
+
+<h2 id="aimcp">AI &amp; MCP</h2>
+<p><b>AI (API/local)</b>: ask in natural language; the model uses read-only tools
+(search/SQL/context/stats/timeline). Point it at any OpenAI-compatible endpoint; the
+key stays in your browser. <b>MCP</b>: expose the same read-only tools to Claude
+Desktop/Code via <code>python -m winhound.mcp_server</code>.</p>
+
+<h2 id="sql">SQL recipes</h2>
+<pre>-- Office spawning a shell/LOLBIN
+SELECT ts, host, image, command_line FROM events
+WHERE eid=1 AND source LIKE '%Sysmon%'
+  AND lower(parent_image) LIKE '%\winword.exe'
+ORDER BY ts;
+
+-- failed logons grouped by source IP
+SELECT src_ip, count(*) n FROM events
+WHERE source='Security' AND eid=4625 GROUP BY src_ip ORDER BY n DESC;
+
+-- driver loads (BYOVD hunting) with hashes
+SELECT ts, host, image_loaded, hashes FROM events
+WHERE source LIKE '%Sysmon%' AND eid=6 ORDER BY ts;
+
+-- a value that lives in EventData (extra)
+SELECT ts, image, extra-&gt;&gt;'TargetObject' AS target
+FROM events WHERE eid=13 ORDER BY ts;
+
+-- network connections to a destination
+SELECT ts, image, dst_ip, extra-&gt;&gt;'DestinationPort' port
+FROM events WHERE eid=3 AND source LIKE '%Sysmon%'
+ORDER BY ts;</pre>
+
+<h2 id="faq">Notes &amp; FAQ</h2>
+<ul>
+ <li><b>Why DuckDB on disk?</b> The case persists (incl. <code>raw</code> and marks), compresses well, and survives restarts; reopen without re-ingesting.</li>
+ <li><b>No Sysmon?</b> Native logs still work (4688, 4624/4625, 7045, 4698…), just with fewer fields (no hashes/image_load).</li>
+ <li><b>GeoIP offline box?</b> Download fails only reach <code>db-ip.com</code>; internal/external tagging always works without a base.</li>
+ <li><b>Rules?</b> You bring your own Sigma (general + one folder per LOL tab). The app ships none.</li>
+</ul>
+
+<footer>🐕 WinHound · guide by <b>gmzpt</b><br>
+<span class="muted">IP Geolocation by DB-IP (https://db-ip.com) · Sample EVTX: EVTX-ATTACK-SAMPLES (@sbousseaden)</span></footer>
+</div>
+</body></html>
