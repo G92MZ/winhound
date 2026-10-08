@@ -40,6 +40,26 @@ python run.py --db case.duckdb  # keep the case in a file instead of memory
 4. **🌲 Dig in** — process tree, logons, persistence, PowerShell script blocks, network.
 5. **📌 Triage & report** — mark events, then export a self‑contained HTML case report.
 
+## 📸 In action
+
+> Loaded with EVTX from the bundled `samples/evtx-attack-samples.zip` (Security, Sysmon, PowerShell…).
+
+**Explorer — full EVTX timeline (channel, EventID, host, user…)**
+
+![Explorer](docs/img/01-explorer.png)
+
+**Search — `image:powershell`, `eid=4624`, `/regex/` and `-exclude`**
+
+![Search](docs/img/02-search.png)
+
+**Overview — Windows dashboard (top EventIDs, top images, hosts, users)**
+
+![Dashboard](docs/img/03-dashboard.png)
+
+**Sigma — your rules run over the EVTX, with “what matched” per hit**
+
+![Sigma](docs/img/04-sigma.png)
+
 ## ✨ What's inside
 
 | | |
