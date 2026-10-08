@@ -82,6 +82,19 @@ python run.py --db case.duckdb  # keep the case in a file instead of memory
 - Cases are DuckDB files under `casos/` (git‑ignored). Use `--db` to pin one.
 - Sigma rules without `product: windows` still run (multiplatform); only rules with a non‑Windows product are skipped.
 
+## 🔄 Updating
+
+Grab the latest version without git — the updater checks GitHub and updates the
+app in place, **keeping your cases and GeoIP databases** (`casos/`, `geoip_data/`):
+
+```bash
+python update.py            # check for a new version and update (asks first)
+python update.py --check    # only check, change nothing
+python update.py --yes      # update without asking
+```
+
+(Cloned with git? `git pull` works too.)
+
 ## 📜 License
 
 Licensed under the **Apache License 2.0** — free to use, modify and distribute
