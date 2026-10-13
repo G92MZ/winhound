@@ -1718,9 +1718,13 @@ class EventStore:
                 for key, typ in (("ServiceName", "service"),
                                  ("TaskName", "task"),
                                  ("PipeName", "pipe"),
-                                 ("TargetObject", "registry")):
+                                 ("TargetObject", "registry"),
+                                 ("UserAgent", "useragent"),
+                                 ("cs(User-Agent)", "useragent"),
+                                 ("User-Agent", "useragent")):
                     v = ex.get(key)
-                    if isinstance(v, str) and v.strip() and (typ, v.strip()) not in seen:
+                    if isinstance(v, str) and v.strip() and v.strip() != "-" \
+                            and (typ, v.strip()) not in seen:
                         seen.add((typ, v.strip()))
                         _bump(typ, v.strip(), rid, ts)
         return self._group_iocs(agg, per_type, X, geo)
