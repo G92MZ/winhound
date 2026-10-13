@@ -60,6 +60,10 @@ python run.py --db case.duckdb  # keep the case in a file instead of memory
 
 ![Sigma](docs/img/04-sigma.png)
 
+**IOCs — indicators discovered in the data, grouped by type and exportable**
+
+![IOCs](docs/img/05-iocs.png)
+
 ## ✨ What's inside
 
 | | |
@@ -71,6 +75,7 @@ python run.py --db case.duckdb  # keep the case in a file instead of memory
 | 🥸 **Lookalike** | masquerading binaries by edit distance across all sources |
 | 🗺️ **ATT&CK matrix** | coverage of the case built from Sigma hits |
 | 🌲 **Hunting views** | process tree (from a PID), logons (Kerberos/NTLM/RDP), persistence, PowerShell, network |
+| 🧷 **IOC extractor** | discovers the IOCs present in the EVTX — IPs, domains, URLs, hashes/imphash, file paths, registry keys, named pipes, services, scheduled tasks — grouped, ASN‑tagged, CSV/JSON export |
 | 🎯 **IOC sweep** | paste IOCs and sweep the whole dataset, export CSV |
 | 🌐 **GeoIP / ASN** | public IPs tagged with country + Org/ISP (offline DB‑IP Lite) |
 | ⏱️ **Live ingest** | progress with start / elapsed / ETA |
