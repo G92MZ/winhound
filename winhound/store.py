@@ -1659,6 +1659,112 @@ class EventStore:
                 "source": r[2], "eid": r[3], "host": r[4],
                 "raw": raw, "pretty": pretty}
 
+    # ------------------------------------------------------------------
+    # Extracción de IOCs: descubre los indicadores presentes en los EVTX
+    # (lo contrario del IOC sweep). Offline, con validación estricta.
+    # ------------------------------------------------------------------
+    def extract_iocs(self, per_type: int = 400) -> dict:
+        import json as _json
+        from . import ioc_extract as X
+        try:
+            from . import geoip as geo
+        except Exception:  # noqa: BLE001
+            geo = None
+        agg: dict = {}
+
+        def _bump(typ, val, rid, ts):
+            e = agg.get((typ, val))
+            if e is None:
+                agg[(typ, val)] = {"count": 1, "id": rid, "ts": ts}
+            else:
+                e["count"] += 1
+                if rid < e["id"]:
+                    e["id"], e["ts"] = rid, ts
+
+        with self._lock:
+            rows = self._con.execute(
+                "SELECT id, ts, coalesce(message,''), "
+                "coalesce(command_line,''), coalesce(image,''), "
+                "coalesce(parent_image,''), coalesce(original_filename,''), "
+                "coalesce(target_filename,''), coalesce(image_loaded,''), "
+                "coalesce(hashes,''), coalesce(src_ip,''), coalesce(dst_ip,''), "
+                "coalesce(host,''), coalesce(\"user\",''), "
+                "coalesce(CAST(extra AS VARCHAR),'') "
+                "FROM events").fetchall()
+        for r in rows:
+            rid, ts = r[0], r[1]
+            (msg, cmd, img, pimg, ofn, tfn, iml, hsh, sip, dip,
+             host, usr, extra) = r[2:]
+            # valores ya parseados de EventData (sin el JSON escapado -> sin \\)
+            ex = None
+            if extra:
+                try:
+                    ex = _json.loads(extra)
+                except Exception:  # noqa: BLE001
+                    ex = None
+            ex_vals = " ".join(str(v) for v in ex.values()
+                               if isinstance(v, (str, int))) if isinstance(ex, dict) else ""
+            general = " ".join((msg, cmd, img, pimg, ofn, tfn, iml,
+                                sip, dip, host, usr, ex_vals))
+            hashes_text = " ".join((hsh, cmd, img, ofn, msg))
+            seen = set()
+            for typ, val in X.iter_iocs(general, hashes_text, windows=True):
+                if (typ, val) in seen:
+                    continue
+                seen.add((typ, val))
+                _bump(typ, val, rid, ts)
+            # extras por campo (más fiables que regex para registry/pipe/…)
+            if isinstance(ex, dict):
+                for key, typ in (("ServiceName", "service"),
+                                 ("TaskName", "task"),
+                                 ("PipeName", "pipe"),
+                                 ("TargetObject", "registry"),
+                                 ("UserAgent", "useragent"),
+                                 ("cs(User-Agent)", "useragent"),
+                                 ("User-Agent", "useragent")):
+                    v = ex.get(key)
+                    if isinstance(v, str) and v.strip() and v.strip() != "-" \
+                            and (typ, v.strip()) not in seen:
+                        seen.add((typ, v.strip()))
+                        _bump(typ, v.strip(), rid, ts)
+        return self._group_iocs(agg, per_type, X, geo)
+
+    @staticmethod
+    def _group_iocs(agg: dict, per_type: int, X, geo) -> dict:
+        by_type: dict = {}
+        for (typ, val), e in agg.items():
+            by_type.setdefault(typ, []).append((val, e))
+        groups = []
+        total = 0
+        geocache: dict = {}
+        for typ in X.IOC_TYPES:
+            items = by_type.get(typ)
+            if not items:
+                continue
+            items.sort(key=lambda kv: (-kv[1]["count"], kv[0]))
+            total += len(items)
+            out_items = []
+            for val, e in items[:per_type]:
+                it = {"value": val, "count": e["count"], "id": e["id"],
+                      "ts": _jsonable(e["ts"])}
+                if typ in ("ipv4", "ipv6"):
+                    it["klass"] = X.ip_class(val)
+                    if geo is not None and it["klass"] == "external":
+                        g = geocache.get(val)
+                        if g is None:
+                            try:
+                                g = geo.lookup(val)
+                            except Exception:  # noqa: BLE001
+                                g = {}
+                            geocache[val] = g
+                        it["asn"] = (f"AS{g['asn']}" if g.get("asn") else None)
+                        it["org"] = g.get("org")
+                        it["country"] = g.get("country_code")
+                out_items.append(it)
+            groups.append({"type": typ, "label": X.IOC_LABEL.get(typ, typ),
+                           "total": len(items), "items": out_items})
+        return {"total": total, "groups": groups}
+
     def reset(self) -> None:
         with self._lock:
             self._con.execute("DELETE FROM events")

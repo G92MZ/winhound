@@ -6,8 +6,8 @@
 
 Feed it `.evtx` files (even straight from a `.zip`/archive), open the browser,
 and investigate: timeline, full‑text + field search, Sigma & LOL detections,
-process tree, logons, persistence, ATT&CK and a one‑click case report.
-Runs **100% offline**.
+process tree, logons, persistence, IOC extraction & sweep, ATT&CK and a
+one‑click case report. Runs **100% offline**.
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-DuckDB-009688)
@@ -60,6 +60,10 @@ python run.py --db case.duckdb  # keep the case in a file instead of memory
 
 ![Sigma](docs/img/04-sigma.png)
 
+**IOCs — indicators discovered in the data, grouped into collapsible cards and exportable**
+
+![IOCs](docs/img/05-iocs.png)
+
 ## ✨ What's inside
 
 | | |
@@ -71,6 +75,7 @@ python run.py --db case.duckdb  # keep the case in a file instead of memory
 | 🥸 **Lookalike** | masquerading binaries by edit distance across all sources |
 | 🗺️ **ATT&CK matrix** | coverage of the case built from Sigma hits |
 | 🌲 **Hunting views** | process tree (from a PID), logons (Kerberos/NTLM/RDP), persistence, PowerShell, network |
+| 🧷 **IOC extractor** | discovers the IOCs present in the EVTX — IPs, domains, URLs, emails, user agents, hashes/imphash, file paths, registry keys, named pipes, services, scheduled tasks — in collapsible per‑type cards, ASN‑tagged, CSV/JSON export |
 | 🎯 **IOC sweep** | paste IOCs and sweep the whole dataset, export CSV |
 | 🌐 **GeoIP / ASN** | public IPs tagged with country + Org/ISP (offline DB‑IP Lite) |
 | ⏱️ **Live ingest** | progress with start / elapsed / ETA |
