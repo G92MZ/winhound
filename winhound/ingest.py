@@ -36,18 +36,17 @@ def ingest_file(store: EventStore, path: str,
         return {"file": display, "error": str(exc)}
 
 
-def _insert_evtx(store: EventStore, path: str) -> int:
+def _insert_evtx(store: EventStore, path: str,
+                 ts_from=None, ts_to=None) -> int:
     batch: list[tuple] = []
     total = 0
     for ev in iter_evtx(path):
         batch.append(ev.as_row())
         if len(batch) >= _BATCH:
-            store.insert_events(batch)
-            total += len(batch)
+            total += store.insert_events(batch, ts_from=ts_from, ts_to=ts_to)
             batch = []
     if batch:
-        store.insert_events(batch)
-        total += len(batch)
+        total += store.insert_events(batch, ts_from=ts_from, ts_to=ts_to)
     return total
 
 
@@ -56,7 +55,8 @@ def _insert_evtx(store: EventStore, path: str) -> int:
 _AVG_REC_BYTES = 1400
 
 
-def _insert_evtx_streaming(store, path, label, bytes_done, filesize):
+def _insert_evtx_streaming(store, path, label, bytes_done, filesize,
+                            ts_from=None, ts_to=None):
     """Generador: inserta un .evtx por lotes emitiendo progreso POR BYTES
     (estimado por nº de registros vs tamaño) para que la barra se mueva también
     dentro de un único .evtx grande. Emite {progress_bytes} y, al final,
@@ -68,30 +68,33 @@ def _insert_evtx_streaming(store, path, label, bytes_done, filesize):
     for ev in iter_evtx(path):
         batch.append(ev.as_row())
         if len(batch) >= _BATCH:
-            store.insert_events(batch)
-            total += len(batch)
+            inserted = store.insert_events(batch, ts_from=ts_from, ts_to=ts_to)
+            total += inserted
             batch = []
             if total - last_emit >= _BATCH:
                 last_emit = total
                 frac = min(0.98, total / est)
                 yield {"progress_bytes": bytes_done + int(filesize * frac)}
     if batch:
-        store.insert_events(batch)
-        total += len(batch)
+        total += store.insert_events(batch, ts_from=ts_from, ts_to=ts_to)
     yield {"file": label, "events": total}
 
 
 def ingest_path(store: EventStore, path: str,
-                label: Optional[str] = None) -> list[dict]:
-    return list(iter_ingest_path(store, path, label))
+                label: Optional[str] = None,
+                ts_from=None, ts_to=None) -> list[dict]:
+    return list(iter_ingest_path(store, path, label,
+                                 ts_from=ts_from, ts_to=ts_to))
 
 
 def iter_ingest_path(store: EventStore, path: str,
                      label: Optional[str] = None,
-                     byte_prog: Optional[list] = None) -> Iterator[dict]:
+                     byte_prog: Optional[list] = None,
+                     ts_from=None, ts_to=None) -> Iterator[dict]:
     base = label if label is not None else os.path.basename(path.rstrip("/\\"))
     single = os.path.isfile(path) and not compress.is_archive(path)
-    yield from _iter_recursive(store, path, single, 0, base, byte_prog)
+    yield from _iter_recursive(store, path, single, 0, base, byte_prog,
+                               ts_from=ts_from, ts_to=ts_to)
 
 
 def count_files(path: str) -> int:
@@ -129,7 +132,7 @@ def count_bytes(path: str) -> int:
 
 
 def _iter_recursive(store, path, single, depth, label,
-                    byte_prog=None) -> Iterator[dict]:
+                    byte_prog=None, ts_from=None, ts_to=None) -> Iterator[dict]:
     if depth > _MAX_DEPTH:
         yield {"file": label, "skipped": "nesting too deep"}
         return
@@ -138,7 +141,8 @@ def _iter_recursive(store, path, single, depth, label,
         for name in sorted(os.listdir(path)):
             child = (label + "/" + name) if label else name
             yield from _iter_recursive(
-                store, os.path.join(path, name), False, depth, child, byte_prog)
+                store, os.path.join(path, name), False, depth, child,
+                byte_prog, ts_from=ts_from, ts_to=ts_to)
         return
 
     if compress.is_archive(path):
@@ -154,7 +158,8 @@ def _iter_recursive(store, path, single, depth, label,
             # el contenido del archivo no está en el denominador: sin progreso
             # por bytes dentro; cuenta por su tamaño en disco una vez, al acabar.
             yield from _iter_recursive(store, tmp, False, depth + 1,
-                                       label + "!", None)
+                                       label + "!", None,
+                                       ts_from=ts_from, ts_to=ts_to)
         except Exception as exc:  # noqa: BLE001
             yield {"archive": label, "error": str(exc)}
         finally:
@@ -172,7 +177,8 @@ def _iter_recursive(store, path, single, depth, label,
                 filesize = 0
             try:
                 yield from _insert_evtx_streaming(
-                    store, path, label, byte_prog[0], filesize)
+                    store, path, label, byte_prog[0], filesize,
+                    ts_from=ts_from, ts_to=ts_to)
             except Exception as exc:  # noqa: BLE001
                 yield {"file": label, "error": str(exc)}
             finally:
@@ -180,7 +186,7 @@ def _iter_recursive(store, path, single, depth, label,
                 yield {"progress_bytes": byte_prog[0]}
             return
         try:
-            n = _insert_evtx(store, path)
+            n = _insert_evtx(store, path, ts_from=ts_from, ts_to=ts_to)
             yield {"file": label, "events": n}
         except Exception as exc:  # noqa: BLE001
             yield {"file": label, "error": str(exc)}

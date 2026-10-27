@@ -4,6 +4,7 @@ from __future__ import annotations
 import bisect
 import ipaddress
 import re
+import datetime as _dt
 import threading
 from typing import Any, Optional
 
@@ -141,7 +142,27 @@ class EventStore:
                     pass
             self._seq_dirty = False
 
-    def insert_events(self, rows: list[tuple]) -> int:
+    def insert_events(self, rows: list[tuple],
+                      ts_from: 'Optional[_dt.datetime]' = None,
+                      ts_to:   'Optional[_dt.datetime]' = None) -> int:
+        """Inserta eventos. ts_from/ts_to (datetime UTC) filtran antes de insertar."""
+        if not rows:
+            return 0
+        if ts_from is not None or ts_to is not None:
+            ts_idx = list(COLUMN_NAMES).index('ts')
+            # ts_from/ts_to son aware-UTC; los ts de los EVTX pueden ser naive
+            # (ya en UTC) o aware. Normalizamos todo a naive-UTC para comparar.
+            _tf = ts_from.replace(tzinfo=None) if ts_from is not None else None
+            _tt = ts_to.replace(tzinfo=None)   if ts_to   is not None else None
+            def _ok(r):
+                v = r[ts_idx]
+                if v is None: return True
+                # normalizar v a naive
+                vn = v.replace(tzinfo=None) if getattr(v, 'tzinfo', None) else v
+                if _tf is not None and vn < _tf: return False
+                if _tt is not None and vn > _tt: return False
+                return True
+            rows = [r for r in rows if _ok(r)]
         if not rows:
             return 0
         n = len(rows)

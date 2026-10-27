@@ -163,6 +163,8 @@ class QueryReq(BaseModel):
 
 class PathReq(BaseModel):
     path: str
+    ts_from: Optional[str] = None   # ISO datetime UTC, p.ej. '2025-01-01'
+    ts_to:   Optional[str] = None
 
 
 class SearchReq(BaseModel):
@@ -1039,6 +1041,18 @@ def geoip_refresh_ep():
                     "regardless, with no base."))
 
 
+def _parse_ts_filter(req):
+    import datetime as _dt
+    def _p(val):
+        if not val: return None
+        val = val.strip().replace(' ', 'T')
+        for fmt in ('%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M', '%Y-%m-%d'):
+            try: return _dt.datetime.strptime(val, fmt).replace(tzinfo=_dt.timezone.utc)
+            except ValueError: pass
+        return None
+    return _p(getattr(req, 'ts_from', None)), _p(getattr(req, 'ts_to', None))
+
+
 @app.post("/ingest/path/stream")
 def ingest_path_stream_ep(req: PathReq):
     """Ingesta EVTX de una ruta del servidor emitiendo el resultado de cada
@@ -1047,12 +1061,14 @@ def ingest_path_stream_ep(req: PathReq):
         raise HTTPException(status_code=404, detail=f"Does not exist: {req.path}")
     _ensure_persistent()
 
+    ts_from, ts_to = _parse_ts_filter(req)
     def gen():
         yield json.dumps({"total": count_files(req.path),
                           "total_bytes": count_bytes(req.path)}) + "\n"
         byte_prog = [0]
         try:
-            for item in iter_ingest_path(STORE, req.path, byte_prog=byte_prog):
+            for item in iter_ingest_path(STORE, req.path, byte_prog=byte_prog,
+                                         ts_from=ts_from, ts_to=ts_to):
                 yield json.dumps(item, ensure_ascii=False, default=str) + "\n"
         except Exception as e:  # noqa: BLE001
             yield json.dumps({"fatal": str(e)}, ensure_ascii=False) + "\n"
@@ -1065,8 +1081,9 @@ def ingest_path_ep(req: PathReq):
     if not os.path.exists(req.path):
         raise HTTPException(status_code=404, detail=f"Does not exist: {req.path}")
     _ensure_persistent()
+    ts_from, ts_to = _parse_ts_filter(req)
     try:
-        res = ingest_path(STORE, req.path)
+        res = ingest_path(STORE, req.path, ts_from=ts_from, ts_to=ts_to)
         return {"ingested": res, "stats": STORE.stats()}
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=400, detail=str(e))
@@ -1076,8 +1093,19 @@ def ingest_path_ep(req: PathReq):
 async def ingest_upload(
     files: list[UploadFile] = File(...),
     relpaths: list[str] = Form(default=[]),
+    ts_from_str: Optional[str] = Form(None),
+    ts_to_str:   Optional[str] = Form(None),
 ):
     _ensure_persistent()
+    import datetime as _dt
+    def _pf(v):
+        if not v: return None
+        v=v.strip().replace(' ','T')
+        for fmt in ('%Y-%m-%dT%H:%M:%S','%Y-%m-%dT%H:%M','%Y-%m-%d'):
+            try: return _dt.datetime.strptime(v,fmt).replace(tzinfo=_dt.timezone.utc)
+            except ValueError: pass
+        return None
+    _ts_from = _pf(ts_from_str); _ts_to = _pf(ts_to_str)
     results = []
     for i, uf in enumerate(files):
         suffix = os.path.basename(uf.filename or "upload.evtx")
@@ -1089,8 +1117,8 @@ async def ingest_upload(
         try:
             real = os.path.join(os.path.dirname(tmp_path), suffix)
             os.replace(tmp_path, real)
-            # admite .evtx o comprimidos (.zip/.tar.gz…) con .evtx dentro
-            results.extend(ingest_path(STORE, real, label=label))
+            results.extend(ingest_path(STORE, real, label=label,
+                                       ts_from=_ts_from, ts_to=_ts_to))
         except Exception as e:  # noqa: BLE001
             results.append({"file": label, "error": str(e)})
         finally:
@@ -1504,6 +1532,19 @@ INDEX_HTML = r"""<!doctype html>
      <button class="bigbtn" onclick="uploadFiles()">Upload and load</button>
      <button class="sec" onclick="clearPicks()">Clear selection</button>
     </div>
+    <div class="row" style="flex-wrap:wrap;gap:10px;margin-top:4px;align-items:center">
+     <span style="font-size:12px;color:var(--muted)">Time filter (UTC, optional):</span>
+     <label class="muted" style="gap:4px">From<input type="text" id="ts_from_up" placeholder="2025-01-01" style="width:130px" title="YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS"></label>
+     <label class="muted" style="gap:4px">To<input type="text" id="ts_to_up" placeholder="2025-12-31" style="width:130px" title="YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS"></label>
+     <select id="ts_preset_up" onchange="applyTsPreset('up',this.value)" style="font-size:12px;padding:3px 6px;background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:6px">
+      <option value="">— quick range —</option>
+      <option value="1">Last 24 h</option>
+      <option value="3">Last 3 days</option>
+      <option value="7">Last 7 days</option>
+      <option value="30">Last 30 days</option>
+      <option value="90">Last 90 days</option>
+     </select>
+    </div>
     <div class="row">
      <progress id="prog" value="0" max="100" style="width:220px;display:none"></progress>
      <span id="ingmsg" class="muted"></span>
@@ -1516,6 +1557,19 @@ INDEX_HTML = r"""<!doctype html>
      <b style="font-size:13px">Or a path on the server:</b>
      <input type="text" id="spath" placeholder="E:\path\to\triage  (folder, .evtx or .zip/.tar.gz)" style="flex:1;min-width:280px">
      <button class="bigbtn" onclick="ingestPath()">Load from path</button>
+    </div>
+    <div class="row" style="flex-wrap:wrap;gap:10px;margin-top:4px;align-items:center">
+     <span style="font-size:12px;color:var(--muted)">Time filter (UTC, optional):</span>
+     <label class="muted" style="gap:4px">From<input type="text" id="ts_from_path" placeholder="2025-01-01" style="width:130px" title="YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS"></label>
+     <label class="muted" style="gap:4px">To<input type="text" id="ts_to_path" placeholder="2025-12-31" style="width:130px" title="YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS"></label>
+     <select id="ts_preset_path" onchange="applyTsPreset('path',this.value)" style="font-size:12px;padding:3px 6px;background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:6px">
+      <option value="">— quick range —</option>
+      <option value="1">Last 24 h</option>
+      <option value="3">Last 3 days</option>
+      <option value="7">Last 7 days</option>
+      <option value="30">Last 30 days</option>
+      <option value="90">Last 90 days</option>
+     </select>
     </div>
     <div class="muted">Faster when the EVTX are already <b>on this machine</b>: the server reads them straight from disk, without uploading through the browser, and you get <b>live progress</b> (files and events). Supports folders with subfolders and archives. The path is on the machine running the server.</div>
    </div>
@@ -2282,7 +2336,7 @@ async function init(){
 
 /* ---------- Ingesta (por lotes, para que muchos ficheros vayan rapido) ---------- */
 const UP_CHUNK=50;  // ficheros por peticion: menos viajes HTTP = mas rapido
-function uploadChunk(files,tz,onprog){
+function uploadChunk(files,tz,onprog,opts){
  return new Promise((resolve,reject)=>{
   const xhr=new XMLHttpRequest();
   xhr.open('POST','/ingest/upload');
@@ -2291,6 +2345,8 @@ function uploadChunk(files,tz,onprog){
   xhr.onerror=()=>reject('network error');
   const fd=new FormData();
   for(const f of files){ fd.append('files',f); fd.append('relpaths', f.webkitRelativePath || f.name); }
+  if(opts&&opts.ts_from) fd.append('ts_from_str',opts.ts_from);
+  if(opts&&opts.ts_to)   fd.append('ts_to_str',opts.ts_to);
   xhr.send(fd);
  });
 }
@@ -2298,6 +2354,14 @@ function clearPicks(){
  document.getElementById('files').value='';
  document.getElementById('folder').value='';
  document.getElementById('ingmsg').textContent='selection cleared';
+}
+function applyTsPreset(sfx,days){
+ if(!days){document.getElementById('ts_from_'+sfx).value='';document.getElementById('ts_to_'+sfx).value='';return;}
+ const now=new Date(),from=new Date(now-parseInt(days)*86400000);
+ const fmt=d=>d.toISOString().slice(0,10);
+ document.getElementById('ts_from_'+sfx).value=fmt(from);
+ document.getElementById('ts_to_'+sfx).value=fmt(now);
+ document.getElementById('ts_preset_'+sfx).value='';
 }
 let INGESTED=[];  // manifiesto acumulado de ficheros procesados
 /* Ingesta desde una ruta del propio servidor (sin subir por el navegador):
@@ -2322,8 +2386,10 @@ async function ingestPath(){
  let total=0, done=0, ev=0, ok=0, skip=0, err=0, totalBytes=0, bytesDone=0;
  const hb=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':(n>=1024?(n/1024).toFixed(0)+' KB':n+' B');
  try{
+  const tsFrom=(document.getElementById('ts_from_path')||{}).value||undefined;
+  const tsTo=(document.getElementById('ts_to_path')||{}).value||undefined;
   const r=await fetch('/ingest/path/stream',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({path})});
+    body:JSON.stringify({path,ts_from:tsFrom,ts_to:tsTo})});
   if(!r.ok){ let d=''; try{d=(await r.json()).detail;}catch(_){} prog.style.display='none';
     msg.innerHTML='<span class="err">'+esc(d||('error '+r.status))+'</span>'; return; }
   const reader=r.body.getReader(); const dec=new TextDecoder(); let buf='';
@@ -2379,8 +2445,10 @@ async function uploadFiles(){
   const chunk=picks.slice(i,i+UP_CHUNK);
   msg.textContent='uploading '+(done+1)+'-'+(done+chunk.length)+' / '+total+' files · '+ingClock(t0,done/total,false);
   try{
-   const j=await uploadChunk(chunk,tz,frac=>{ const f=(done+frac*chunk.length)/total; prog.value=Math.round(f*100);
-     msg.textContent='uploading '+(done+1)+'-'+(done+chunk.length)+' / '+total+' files · '+Math.round(f*100)+'% · '+ingClock(t0,f,false); });
+   const uTsFrom=(document.getElementById('ts_from_up')||{}).value||null;
+  const uTsTo=(document.getElementById('ts_to_up')||{}).value||null;
+  const j=await uploadChunk(chunk,tz,frac=>{ const f=(done+frac*chunk.length)/total; prog.value=Math.round(f*100);
+     msg.textContent='uploading '+(done+1)+'-'+(done+chunk.length)+' / '+total+' files · '+Math.round(f*100)+'% · '+ingClock(t0,f,false); },{ts_from:uTsFrom,ts_to:uTsTo});
    for(const x of (j.ingested||[])){
     INGESTED.push(x);
     if(x.events!=null){ok++; ev+=x.events;} else if(x.skipped){skip++;} else if(x.error){err++;}
