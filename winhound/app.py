@@ -95,6 +95,24 @@ _SYSTEM_BINS = [
 CASES_DIR = "casos"
 
 
+def _read_app_version() -> str:
+    """Lee el fichero VERSION (raíz del repo, un nivel por encima del paquete)."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    for cand in (os.path.join(here, "..", "VERSION"),
+                 os.path.join(os.getcwd(), "VERSION")):
+        try:
+            with open(cand, encoding="utf-8") as f:
+                v = f.read().strip()
+            if v:
+                return v
+        except OSError:
+            continue
+    return "?"
+
+
+APP_VERSION = _read_app_version()
+
+
 def _auto_db_path() -> str:
     ts = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     return os.path.join(CASES_DIR, f"bbdd_{ts}.duckdb")
@@ -1130,7 +1148,7 @@ async def ingest_upload(
 
 @app.get("/", response_class=HTMLResponse)
 def index():
-    return INDEX_HTML
+    return INDEX_HTML.replace("__APP_VERSION__", APP_VERSION)
 
 
 INDEX_HTML = r"""<!doctype html>
@@ -1318,6 +1336,7 @@ INDEX_HTML = r"""<!doctype html>
  tr.failrow td:first-child{border-left:3px solid #f85149}
  .err{color:#ff7b72;font-family:var(--mono);white-space:pre-wrap}
  .pill{background:var(--panel2);border:1px solid var(--border);border-radius:999px;padding:4px 12px;font-size:12px}
+ .pill.ver{margin-left:auto;color:var(--muted);font-family:var(--mono)}
  a{color:var(--accent)}
  /* explorador */
  .hit{padding:10px 14px;border:1px solid var(--border);border-radius:9px;margin:9px 0;cursor:pointer;font-family:var(--mono);font-size:12px;background:var(--panel)}
@@ -1461,6 +1480,7 @@ INDEX_HTML = r"""<!doctype html>
  <span class="muted">Windows EVTX (Sysmon/Security/PowerShell/…) &middot; DuckDB</span>
  <span id="stat" class="pill">loading&hellip;</span>
  <span id="dbpill" class="pill" title="Where this case is stored"></span>
+ <span id="verpill" class="pill ver" title="Installed version">v__APP_VERSION__</span>
 </header>
 <main>
  <div class="tabs">
