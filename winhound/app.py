@@ -1367,8 +1367,12 @@ INDEX_HTML = r"""<!doctype html>
  .qhelpbody table{border-collapse:collapse}
  .qhelpbody td{padding:3px 10px 3px 0;vertical-align:top;color:var(--muted)}
  .qhelpbody td:first-child{white-space:nowrap}
+ .qhelpbody table{margin-top:0;width:auto;font-family:inherit;font-size:12.5px}
+ .qhelpbody td{border:0;border-bottom:1px solid rgba(127,127,127,.15);white-space:normal;max-width:none;overflow:visible;padding:5px 14px 5px 0;line-height:1.45}
+ .qhelpbody td:first-child{white-space:nowrap;vertical-align:top}
  .qhelpbody code{background:rgba(127,127,127,.16);padding:1px 5px;border-radius:4px;color:var(--fg)}
  .qhelpbody p{margin:8px 0 0}
+ .qwarn{margin:6px 0;padding:6px 10px;border:1px solid #8a6d1f;border-radius:8px;background:rgba(210,153,34,.12);color:#e3b341;font-size:12px}
  .faccount{font-size:11px;color:var(--muted);margin:6px 0 4px}
  .facwrap{display:flex;flex-direction:column;gap:3px;max-width:640px;max-height:230px;overflow-y:auto;padding-right:4px}
  .facclose{margin-left:6px}
@@ -1620,8 +1624,8 @@ INDEX_HTML = r"""<!doctype html>
     <div class="tbglabel">Search</div>
     <div class="tbrow">
      <div class="fld grow qacwrap">
-      <label for="q">Text, IOC, IP or hash <span class="hintlbl">· words = AND · <code>field:value</code> · <code>-exclude</code></span></label>
-      <input type="text" id="q" placeholder="mimikatz  image:powershell  -user:SYSTEM" autofocus autocomplete="off">
+      <label for="q">Text, IOC, IP or hash <span class="hintlbl">· <code>field:value</code> · <code>AND</code> <code>OR</code> <code>NOT</code> <code>( )</code> · see «How to filter» below</span></label>
+      <input type="text" id="q" placeholder="mimikatz  eid=1  image:powershell  NOT user:SYSTEM" autofocus autocomplete="off">
       <div id="qac" class="qac hidden"></div>
      </div>
      <div class="fld">
@@ -1639,22 +1643,25 @@ INDEX_HTML = r"""<!doctype html>
      <button class="bigbtn" onclick="doSearch()">Search</button>
     </div>
     <details class="qhelp">
-     <summary>How to filter &mdash; field search, exact match &amp; exclude (NOT)</summary>
+     <summary>How to filter &mdash; fields, AND / OR / NOT, exact match, wildcards</summary>
      <div class="qhelpbody">
       <table>
        <tr><td><code>mimikatz lsass</code></td><td>free text; several words = <b>AND</b> (all must appear)</td></tr>
-       <tr><td><code>image:powershell</code></td><td>field <b>contains</b> (case-insensitive). Also <code>command_line:enc</code>, <code>user:admin</code>, <code>src_ip:10.</code></td></tr>
-       <tr><td><code>image&nbsp;contains&nbsp;powershell</code></td><td>same thing, written with the word <code>contains</code></td></tr>
-       <tr><td><code>eid=4688</code></td><td>field <b>exactly</b> equals (<code>=</code>). Handy for EventID, logon_type…</td></tr>
-       <tr><td><code>user!=SYSTEM</code></td><td>field is <b>not</b> that value</td></tr>
-       <tr><td><code>-SYSTEM</code> &nbsp; <code>-eid:4624</code></td><td><b>exclude</b> (NOT): drop events with that text / field value. Several allowed</td></tr>
-       <tr><td><code>x:TargetObject:Run</code></td><td>a key of the <code>extra</code> JSON (EventData, <b>PascalCase</b>). Also <code>extra.TargetObject:Run</code></td></tr>
-       <tr><td><code>/regex/</code></td><td>regex over the raw record, e.g. <code>/mimikatz|sekurlsa/</code>. Combine with fields &amp; NOT</td></tr>
-       <tr><td><code>command_line:/-enc\s+\w+/</code></td><td>regex on a single field. Quote if it has spaces: <code>"command_line:/a b/"</code></td></tr>
-       <tr><td><code>logon_type:*</code></td><td>the field <b>exists</b> / has a value. <code>-logon_type:*</code> (or <code>logon_type:-</code>) = <b>empty or missing</b></td></tr>
-       <tr><td><code>command_line:"-enc AB"</code></td><td>use quotes for values with spaces</td></tr>
+       <tr><td><code>"access is denied"</code></td><td>exact phrase (quotes). Quotes also let you search the words and / or / not</td></tr>
+       <tr><td><code>eid:4688 &nbsp; eid=4688 &nbsp; EventID = 4688</code></td><td><b><code>:</code> and <code>=</code> are the same</b>; spaces around them are fine. Number / code fields (eid, logon_type, record_id) match <b>exactly</b>, so <code>eid:6</code> never matches 4661</td></tr>
+       <tr><td><code>image:powershell</code></td><td>text fields match when they <b>contain</b> the value (case-insensitive)</td></tr>
+       <tr><td><code>image==C:\Windows\System32\cmd.exe</code></td><td><code>==</code> = <b>exact</b> match, also on text fields</td></tr>
+       <tr><td><code>image:*\powershell.exe</code></td><td>wildcards <code>*</code> <code>?</code> over the whole value (here: ends with)</td></tr>
+       <tr><td><code>eid:4624,4625</code></td><td>any of several values (commas)</td></tr>
+       <tr><td><code>eid&gt;=4600 &nbsp; ts&gt;=2026-10-01</code></td><td>compare numbers and dates with <code>&gt; &gt;= &lt; &lt;=</code>. <code>ts:2026-10-01</code> = that whole day</td></tr>
+       <tr><td><code>eid=4624 OR eid=4625</code></td><td><b>AND</b> (default), <b>OR</b>, <b>NOT</b> and <b>( )</b>: <code>(eid=4624 OR eid=4625) logon_type:3</code></td></tr>
+       <tr><td><code>NOT user:SYSTEM &nbsp; -user:SYSTEM &nbsp; user!=SYSTEM</code></td><td><b>exclude</b> — three equivalent forms; <code>-word</code> works on free text too</td></tr>
+       <tr><td><code>TargetObject:Run &nbsp; x:TargetObject:Run</code></td><td>EventData keys work by name; <code>x:</code> forces an EventData key (exact case)</td></tr>
+       <tr><td><code>/mimikatz|sekurlsa/ &nbsp; command_line:/-enc\s+\w+/</code></td><td>regex over the raw record, or on one field</td></tr>
+       <tr><td><code>logon_type:* &nbsp; logon_type:-</code></td><td>the field <b>has a value</b> / is <b>empty or missing</b></td></tr>
+       <tr><td><code>command_line:"-enc AB"</code></td><td>quotes for values with spaces</td></tr>
       </table>
-      <p class="hintlbl">Mix freely: <code>image:powershell -user:SYSTEM eid=1</code>. Fields: ts, source(channel), host, eid, user, sid, src_ip, dst_ip, image, command_line, parent_image, hashes, target_filename, logon_type, message (aliases: ip, id, cmd, img, parent…). The <b>regex</b> checkbox treats the WHOLE box as one regex; the <code>/…/</code> form works token-by-token without it.</p>
+      <p class="hintlbl">Example: <code>eid=7045 mimikatz</code> = services installed that mention mimikatz. Field names ignore case and <code>_</code>: <code>EventID</code>/<code>event_id</code> → eid, <code>CommandLine</code> → command_line, <code>ParentImage</code> → parent_image, <code>SourceIp</code>/<code>ip</code> → src_ip, <code>Computer</code> → host, <code>Channel</code> → source. Fields: ts, source, host, eid, user, sid, src_ip, dst_ip, image, command_line, parent_image, original_filename, hashes, target_filename, image_loaded, logon_type, record_id, message. An unknown field shows a ⚠ warning and is searched as plain text. The <b>regex</b> checkbox treats the WHOLE box as one regex.</p>
      </div>
     </details>
     <details class="qhelp savedbox" ontoggle="if(this.open)renderSaved()">
@@ -1739,7 +1746,7 @@ INDEX_HTML = r"""<!doctype html>
   </div>
 
   <div id="colspanel" class="hidden"></div>
-  <p class="muted tbnote">Searches message, raw line, exe, path, user and IP. Click a result (or use its <b>#</b>) to see its context: N lines or X minutes before and after by timestamp, across the whole timeline (not just that one log). The <b>#</b> is the position in the timeline (1 = oldest).</p>
+  <p class="muted tbnote">Free text searches the message, raw record, image, command line, parent image, hashes, file names, user, SID and IPs. Click a result (or use its <b>#</b>) to see its context: N lines or X minutes before and after by timestamp, across the whole timeline (not just that one log). The <b>#</b> is the position in the timeline (1 = oldest).</p>
   <div id="gotoout"></div>
   <div id="hits"></div>
  </section>
@@ -2063,7 +2070,7 @@ LIMIT 50;</textarea>
    <h3>Explorer, Time range &amp; SQL</h3>
    <ul>
     <li>Search any text (IOC, IP, hash, command, Image). Multiple words = AND. Toggle <b>regex</b>. The <b>Channel</b> dropdown filters by source, and next to it the <b>EventID</b> dropdown filters by event ID (both default to <b>(all)</b>, are populated from what's loaded, and apply to <i>both</i> the search and the timeline).</li>
-    <li><b>Filter by a field's content</b> with <code>field:value</code> (contains), e.g. <code>image:powershell</code>, <code>command_line:enc</code>, <code>src_ip:10.</code> (word form <code>image contains powershell</code> works too). <code>field=value</code> is an <b>exact</b> match (<code>eid=4688</code>), <code>field!=value</code> is <b>not equal</b>. <b>Exclude (NOT)</b> with a leading <code>-</code>: <code>-SYSTEM</code>, <code>-eid:4624</code>. Reach an EventData key with <code>x:TargetObject:Run</code> (PascalCase). <b>Regex per token</b>: <code>/regex/</code> over the raw record and <code>field:/regex/</code> on one field (e.g. <code>command_line:/-enc\s+\w+/</code>), combinable with fields and NOT. <b>Field exists / empty</b>: <code>field:*</code> = that field has a value (e.g. <code>logon_type:*</code>), <code>-field:*</code> (or <code>field:-</code>) = empty or missing. Mix freely: <code>image:powershell -user:SYSTEM eid=1</code>. A <b>«How to filter»</b> cheatsheet sits under the search box, which also <b>autocompletes field names</b>; the <b>regex</b> checkbox treats the whole box as one regex.</li>
+    <li><b>Query language</b> (Explorer search box; same in Longanizer): <code>field:value</code> and <code>field=value</code> are <b>the same</b> and spaces around them are fine (<code>eid = 6</code>). Number / code fields (<code>eid</code>, <code>logon_type</code>, <code>record_id</code>) match <b>exactly</b>; text fields match when they <b>contain</b> the value. <code>==</code> forces an exact match on text (<code>image==C:\Windows\System32\cmd.exe</code>); wildcards <code>*</code>/<code>?</code> match the whole value (<code>image:*\powershell.exe</code>); lists <code>eid:4624,4625</code>; comparisons <code>eid&gt;=4600</code>, <code>ts&gt;=2026-10-01</code>, and <code>ts:2026-10-01</code> for a whole day. Combine with <b>AND</b> (default, words separated by spaces), <b>OR</b>, <b>NOT</b> and <b>( )</b>: <code>(eid=4624 OR eid=4625) logon_type:3 NOT user:SYSTEM</code>. Exclude also with <code>-term</code> or <code>field!=value</code>. Quotes give a literal phrase (<code>"access is denied"</code>). Regex per term: <code>/regex/</code> over the raw record, <code>field:/regex/</code> on one field. <code>field:*</code> = has a value, <code>field:-</code> = empty. Field names ignore case and <code>_</code> (<code>EventID</code>, <code>event_id</code> → eid; <code>CommandLine</code> → command_line) and EventData keys work directly (<code>TargetObject:Run</code>; <code>x:Key</code> forces it). An unknown field shows a ⚠ warning instead of failing silently, and malformed queries (unclosed quote or parenthesis, <code>OR</code> at the end) say what is wrong. The <b>regex</b> checkbox treats the whole box as one regex. A <b>«How to filter»</b> cheatsheet sits under the box, which also <b>autocompletes field names</b>.</li>
     <li><b>Facets</b>: pick a field and click <b>Top values</b> for its most frequent values over the current results — click one to add it to the search (categorical fields like eid, user, image, src_ip, asn, org are the useful ones). The list is scrollable and has a <b>✕ hide</b>; it follows the <b>current view</b> — the <b>timeline</b> facets over everything (its channel/time filters), a <b>search</b> over its matches. <b>Recent &amp; saved searches</b> keeps your last queries and named ones (in this browser).</li>
     <li><b>Time range</b> (From / To, UTC) applies to <i>both</i> search and the full timeline, to scope a window.</li>
     <li>Click a row for its <b>context</b> (±N events). The <b>&#10697;</b> button on every row — and in the context header — copies the <b>full event JSON</b> to the clipboard; the <b>Structured event</b> modal shows the whole record to read and copy in full.</li>
@@ -2268,7 +2275,7 @@ async function loadFacets(){
 }
 function facPick(el){
  const field=el.dataset.f, val=el.dataset.v||'';
- const tok=(/\s/.test(val)?field+':"'+val+'"':field+':'+val);
+ const tok=(/[\s()]/.test(val)?field+'=="'+val+'"':field+'=='+val);   // valor de faceta = exacto
  const q=document.getElementById('q');
  q.value=(q.value.trim()+' '+tok).trim();
  doSearch();
@@ -2931,20 +2938,26 @@ async function doSearch(){
  try{
   const j=await fetchSearch(0);
   if(!j){hits.innerHTML='<div class="err">error</div>';return}
-  if(!j.rows.length){hits.innerHTML='<p class="muted">No matches'+((SE.start||SE.end)?' in that time range':'')+'.</p>';return}
+  const qw=qwarnHtml(j);
+  if(!j.rows.length){hits.innerHTML=qw+'<p class="muted">No matches'+((SE.start||SE.end)?' in that time range':'')+'.</p>';return}
   SE.total=j.total; SE.offset=j.rows.length; SE.cols=j.columns; SE.rows=j.rows.slice();
-  hits.innerHTML='<div class="count" id="secount"></div>'+tableHtml(j,'serows')+'<div class="row" id="semore"></div>';
+  hits.innerHTML=qw+'<div class="count" id="secount"></div>'+tableHtml(j,'serows')+'<div class="row" id="semore"></div>';
   updateSeFooter();
- }catch(e){hits.innerHTML='<div class="err">'+e+'</div>'}
+ }catch(e){hits.innerHTML='<div class="err">&#9888; '+esc(e && e.message ? e.message : String(e))+'</div>'}
 }
 async function fetchSearch(offset){
  const r=await fetch('/search',{method:'POST',headers:{'Content-Type':'application/json'},
    body:JSON.stringify({q:SE.q,regex:SE.regex,source:SE.source,eid:SE.eid||null,limit:pageSize(),offset,sort:SORT.col,desc:SORT.desc,start:SE.start||null,end:SE.end||null})});
- return r.ok ? await r.json() : null;
+ if(!r.ok){ let d='search error ('+r.status+')'; try{ d=(await r.json()).detail||d }catch(e){} throw new Error(d); }
+ return await r.json();
+}function qwarnHtml(j){
+ return (j && j.warnings && j.warnings.length)
+   ? j.warnings.map(w=>'<div class="qwarn">&#9888; '+esc(w)+'</div>').join('') : '';
 }
+
 async function loadMoreSearch(){
  const btn=document.getElementById('sebtn'); if(btn){btn.disabled=true;btn.textContent='loading…';}
- const j=await fetchSearch(SE.offset);
+ let j=null; try{ j=await fetchSearch(SE.offset); }catch(e){}
  if(j && j.rows.length){
   document.getElementById('serows').insertAdjacentHTML('beforeend', rowTrs(j));
   SE.offset+=j.rows.length; SE.rows=SE.rows.concat(j.rows);
