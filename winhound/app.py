@@ -1628,7 +1628,7 @@ INDEX_HTML = r"""<!doctype html>
     <div class="tbglabel">Search</div>
     <div class="tbrow">
      <div class="fld grow qacwrap">
-      <label for="q">Text, IOC, IP or hash <span class="hintlbl">· <code>field:value</code> · <code>AND</code> <code>OR</code> <code>NOT</code> <code>( )</code> · see «How to filter» below</span></label>
+      <label for="q">Text, IOC, IP or hash <span class="hintlbl">· <code>field=value</code> equal · <code>field:value</code> contains · <code>AND</code> <code>OR</code> <code>NOT</code> <code>( )</code> · see «How to filter» below</span></label>
       <input type="text" id="q" placeholder="mimikatz  eid=1  image:powershell  NOT user:SYSTEM" autofocus autocomplete="off">
       <div id="qac" class="qac hidden"></div>
      </div>
@@ -1647,26 +1647,26 @@ INDEX_HTML = r"""<!doctype html>
      <button class="bigbtn" onclick="doSearch()">Search</button>
     </div>
     <details class="qhelp">
-     <summary>How to filter &mdash; fields, AND / OR / NOT, exact match, wildcards</summary>
+     <summary>How to filter &mdash; <b>=</b> equal · <b>:</b> contains · AND / OR / NOT · wildcards</summary>
      <div class="qhelpbody">
       <table>
        <tr><td><code>mimikatz lsass</code></td><td>free text; several words = <b>AND</b> (all must appear)</td></tr>
        <tr><td><code>"access is denied"</code></td><td>exact phrase (quotes). Quotes also let you search the words and / or / not</td></tr>
-       <tr><td><code>eid:4688 &nbsp; eid=4688 &nbsp; EventID = 4688</code></td><td><b><code>:</code> and <code>=</code> are the same</b>; spaces around them are fine. Number / code fields (eid, logon_type, record_id) match <b>exactly</b>, so <code>eid:6</code> never matches 4661</td></tr>
-       <tr><td><code>image:powershell</code></td><td>text fields match when they <b>contain</b> the value (case-insensitive)</td></tr>
-       <tr><td><code>image==C:\Windows\System32\cmd.exe</code></td><td><code>==</code> = <b>exact</b> match, also on text fields</td></tr>
+       <tr><td><code>user=SYSTEM &nbsp; image=C:\Windows\System32\cmd.exe</code></td><td><b><code>=</code> means equal</b>: the exact value (case-insensitive). This is what clicking &#8853; adds</td></tr>
+       <tr><td><code>image:powershell &nbsp; command_line:-enc</code></td><td><b><code>:</code> means contains</b> (case-insensitive). It also takes wildcards and regex, see below</td></tr>
+       <tr><td><code>eid=4688 &nbsp; eid:4688 &nbsp; EventID = 4688</code></td><td>numbers and codes (eid, logon_type, record_id) are always exact with either operator, so <code>eid:6</code> never matches 4661. Spaces around the operator are fine</td></tr>
+       <tr><td><code>eid=4624,4625</code></td><td>any of several numbers / codes (commas)</td></tr>
        <tr><td><code>image:*\powershell.exe</code></td><td>wildcards <code>*</code> <code>?</code> over the whole value (here: ends with)</td></tr>
-       <tr><td><code>eid:4624,4625</code></td><td>any of several values (commas)</td></tr>
        <tr><td><code>eid&gt;=4600 &nbsp; ts&gt;=2026-10-01</code></td><td>compare numbers and dates with <code>&gt; &gt;= &lt; &lt;=</code>. <code>ts:2026-10-01</code> = that whole day</td></tr>
-       <tr><td><code>eid=4624 OR eid=4625</code></td><td><b>AND</b> (default), <b>OR</b>, <b>NOT</b> and <b>( )</b>: <code>(eid=4624 OR eid=4625) logon_type:3</code></td></tr>
-       <tr><td><code>NOT user:SYSTEM &nbsp; -user:SYSTEM &nbsp; user!=SYSTEM</code></td><td><b>exclude</b> — three equivalent forms; <code>-word</code> works on free text too</td></tr>
+       <tr><td><code>eid=4624 OR eid=4625</code></td><td><b>AND</b> (default), <b>OR</b>, <b>NOT</b> and <b>( )</b>: <code>(eid=4624 OR eid=4625) logon_type=3</code></td></tr>
+       <tr><td><code>NOT user=SYSTEM &nbsp; -user=SYSTEM &nbsp; user!=SYSTEM</code></td><td><b>exclude</b> — three equivalent forms; <code>-word</code> works on free text too</td></tr>
        <tr><td><code>TargetObject:Run &nbsp; x:TargetObject:Run</code></td><td>EventData keys work by name; <code>x:</code> forces an EventData key (exact case)</td></tr>
-       <tr><td><code>/mimikatz|sekurlsa/ &nbsp; command_line:/-enc\s+\w+/</code></td><td>regex over the raw record, or on one field</td></tr>
+       <tr><td><code>/mimikatz|sekurlsa/ &nbsp; command_line:/-enc\s+\w+/</code></td><td>regex over the raw record, or on one field (with <code>:</code>)</td></tr>
        <tr><td><code>logon_type:* &nbsp; logon_type:-</code></td><td>the field <b>has a value</b> / is <b>empty or missing</b></td></tr>
        <tr><td><code>command_line:"-enc AB"</code></td><td>quotes for values with spaces</td></tr>
-       <tr><td><code>&#8853; / &#8854; on a cell</code></td><td>hover any value in the results and click <b>&#8853;</b> to add <code>field==value</code> or <b>&#8854;</b> to exclude it. Shortcut: <b>Ctrl/⌘-click</b> the cell (<b>+Shift</b> = exclude)</td></tr>
+       <tr><td><code>&#8853; / &#8854; on a cell</code></td><td>hover any value in the results and click <b>&#8853;</b> to add <code>field=value</code> or <b>&#8854;</b> to exclude it (<code>-field=value</code>). Shortcut: <b>Ctrl/⌘-click</b> the cell (<b>+Shift</b> = exclude)</td></tr>
       </table>
-      <p class="hintlbl">Example: <code>eid=7045 mimikatz</code> = services installed that mention mimikatz. Field names ignore case and <code>_</code>: <code>EventID</code>/<code>event_id</code> → eid, <code>CommandLine</code> → command_line, <code>ParentImage</code> → parent_image, <code>SourceIp</code>/<code>ip</code> → src_ip, <code>Computer</code> → host, <code>Channel</code> → source. Fields: ts, source, host, eid, user, sid, src_ip, dst_ip, image, command_line, parent_image, original_filename, hashes, target_filename, image_loaded, logon_type, record_id, message. An unknown field shows a ⚠ warning and is searched as plain text. The <b>regex</b> checkbox treats the WHOLE box as one regex.</p>
+      <p class="hintlbl">Remember: <b><code>=</code> equal · <code>:</code> contains</b>. Example: <code>eid=7045 mimikatz</code> = services installed that mention mimikatz. Field names ignore case and <code>_</code>: <code>EventID</code>/<code>event_id</code> → eid, <code>CommandLine</code> → command_line, <code>ParentImage</code> → parent_image, <code>SourceIp</code>/<code>ip</code> → src_ip, <code>Computer</code> → host, <code>Channel</code> → source. Fields: ts, source, host, eid, user, sid, src_ip, dst_ip, image, command_line, parent_image, original_filename, hashes, target_filename, image_loaded, logon_type, record_id, message. An unknown field shows a ⚠ warning and is searched as plain text. The <b>regex</b> checkbox treats the WHOLE box as one regex.</p>
      </div>
     </details>
     <details class="qhelp savedbox" ontoggle="if(this.open)renderSaved()">
@@ -1751,7 +1751,7 @@ INDEX_HTML = r"""<!doctype html>
   </div>
 
   <div id="colspanel" class="hidden"></div>
-  <p class="muted tbnote">Free text searches the message, raw record, image, command line, parent image, hashes, file names, user, SID and IPs. Click a result (or use its <b>#</b>) to see its context: N lines or X minutes before and after by timestamp, across the whole timeline (not just that one log). The <b>#</b> is the position in the timeline (1 = oldest). <b>Hover a cell and click &#8853; / &#8854;</b> (or Ctrl/⌘-click it, +Shift to exclude) to add <code>field==value</code> to the query.</p>
+  <p class="muted tbnote">Free text searches the message, raw record, image, command line, parent image, hashes, file names, user, SID and IPs. Click a result (or use its <b>#</b>) to see its context: N lines or X minutes before and after by timestamp, across the whole timeline (not just that one log). The <b>#</b> is the position in the timeline (1 = oldest). <b>Hover a cell and click &#8853; / &#8854;</b> (or Ctrl/⌘-click it, +Shift to exclude) to add <code>field=value</code> to the query.</p>
   <div id="gotoout"></div>
   <div id="hits"></div>
  </section>
@@ -2075,8 +2075,8 @@ LIMIT 50;</textarea>
    <h3>Explorer, Time range &amp; SQL</h3>
    <ul>
     <li>Search any text (IOC, IP, hash, command, Image). Multiple words = AND. Toggle <b>regex</b>. The <b>Channel</b> dropdown filters by source, and next to it the <b>EventID</b> dropdown filters by event ID (both default to <b>(all)</b>, are populated from what's loaded, and apply to <i>both</i> the search and the timeline).</li>
-    <li><b>Filter from the results</b>: hover any cell and click <b>&#8853;</b> to add <code>field==value</code> to the query (or <b>&#8854;</b> to exclude it, <code>-field==value</code>); the search re-runs at once. Shortcut: <b>Ctrl/⌘-click</b> the cell, with <b>Shift</b> to exclude. Values with spaces are quoted for you and empty cells become <code>field:-</code>. A normal click on the row still opens its context.</li>
-    <li><b>Query language</b> (Explorer search box; same in Longanizer): <code>field:value</code> and <code>field=value</code> are <b>the same</b> and spaces around them are fine (<code>eid = 6</code>). Number / code fields (<code>eid</code>, <code>logon_type</code>, <code>record_id</code>) match <b>exactly</b>; text fields match when they <b>contain</b> the value. <code>==</code> forces an exact match on text (<code>image==C:\Windows\System32\cmd.exe</code>); wildcards <code>*</code>/<code>?</code> match the whole value (<code>image:*\powershell.exe</code>); lists <code>eid:4624,4625</code>; comparisons <code>eid&gt;=4600</code>, <code>ts&gt;=2026-10-01</code>, and <code>ts:2026-10-01</code> for a whole day. Combine with <b>AND</b> (default, words separated by spaces), <b>OR</b>, <b>NOT</b> and <b>( )</b>: <code>(eid=4624 OR eid=4625) logon_type:3 NOT user:SYSTEM</code>. Exclude also with <code>-term</code> or <code>field!=value</code>. Quotes give a literal phrase (<code>"access is denied"</code>). Regex per term: <code>/regex/</code> over the raw record, <code>field:/regex/</code> on one field. <code>field:*</code> = has a value, <code>field:-</code> = empty. Field names ignore case and <code>_</code> (<code>EventID</code>, <code>event_id</code> → eid; <code>CommandLine</code> → command_line) and EventData keys work directly (<code>TargetObject:Run</code>; <code>x:Key</code> forces it). An unknown field shows a ⚠ warning instead of failing silently, and malformed queries (unclosed quote or parenthesis, <code>OR</code> at the end) say what is wrong. The <b>regex</b> checkbox treats the whole box as one regex. A <b>«How to filter»</b> cheatsheet sits under the box, which also <b>autocompletes field names</b>.</li>
+    <li><b>Filter from the results</b>: hover any cell and click <b>&#8853;</b> to add <code>field=value</code> (equal) to the query (or <b>&#8854;</b> to exclude it, <code>-field=value</code>); the search re-runs at once. Shortcut: <b>Ctrl/⌘-click</b> the cell, with <b>Shift</b> to exclude. Values with spaces are quoted for you and empty cells become <code>field:-</code>. A normal click on the row still opens its context.</li>
+    <li><b>Query language</b> (Explorer search box; same in Longanizer). Two field operators: <b><code>field=value</code> means equal</b> (the exact value, case-insensitive: <code>user=SYSTEM</code>) and <b><code>field:value</code> means contains</b> (<code>image:powershell</code>). Numbers and codes (<code>eid</code>, <code>logon_type</code>, <code>record_id</code>) are always exact with either one, so <code>eid:6</code> and <code>eid=6</code> are the same and never match 4661. Spaces around the operator are fine (<code>EventID = 6</code>). With <code>:</code> you also get wildcards (<code>image:*\powershell.exe</code>), regex (<code>command_line:/-enc\s+\w+/</code>), <code>field:*</code> (has a value) and <code>field:-</code> (empty). Lists of numbers/codes: <code>eid=4624,4625</code>; comparisons: <code>eid&gt;=4600</code>, <code>ts&gt;=2026-10-01</code>; <code>ts:2026-10-01</code> = a whole day. Combine with <b>AND</b> (default, words separated by spaces), <b>OR</b>, <b>NOT</b> and <b>( )</b>: <code>(eid=4624 OR eid=4625) logon_type=3 NOT user=SYSTEM</code>. Exclude also with <code>-term</code> or <code>field!=value</code> (not equal). Quotes give a literal phrase (<code>"access is denied"</code>); <code>/regex/</code> alone searches the raw record. Field names ignore case and <code>_</code> (<code>EventID</code>, <code>event_id</code> → eid; <code>CommandLine</code> → command_line) and EventData keys work directly (<code>TargetObject:Run</code>; <code>x:Key</code> forces it). An unknown field shows a ⚠ warning instead of failing silently, and malformed queries (unclosed quote or parenthesis, <code>OR</code> at the end) say what is wrong. The <b>regex</b> checkbox treats the whole box as one regex. A <b>«How to filter»</b> cheatsheet sits under the box, which also <b>autocompletes field names</b>. (<code>==</code> still works as a synonym of <code>=</code>.)</li>
     <li><b>Facets</b>: pick a field and click <b>Top values</b> for its most frequent values over the current results — click one to add it to the search (categorical fields like eid, user, image, src_ip, asn, org are the useful ones). The list is scrollable and has a <b>✕ hide</b>; it follows the <b>current view</b> — the <b>timeline</b> facets over everything (its channel/time filters), a <b>search</b> over its matches. <b>Recent &amp; saved searches</b> keeps your last queries and named ones (in this browser).</li>
     <li><b>Time range</b> (From / To, UTC) applies to <i>both</i> search and the full timeline, to scope a window.</li>
     <li>Click a row for its <b>context</b> (±N events). The <b>&#10697;</b> button on every row — and in the context header — copies the <b>full event JSON</b> to the clipboard; the <b>Structured event</b> modal shows the whole record to read and copy in full.</li>
@@ -2135,7 +2135,7 @@ FROM events WHERE eid=13 ORDER BY ts;</pre>
   </div>
  </section>
 </main>
-<div id="cfbar" class="hidden"><button onclick="cfAct(event,1)" title="Filter for this value (field==value) · shortcut: Ctrl/⌘-click the cell">&#8853;</button><button onclick="cfAct(event,0)" title="Filter out this value · shortcut: Ctrl/⌘+Shift-click the cell">&#8854;</button></div>
+<div id="cfbar" class="hidden"><button onclick="cfAct(event,1)" title="Filter for this value (field=value) · shortcut: Ctrl/⌘-click the cell">&#8853;</button><button onclick="cfAct(event,0)" title="Filter out this value · shortcut: Ctrl/⌘+Shift-click the cell">&#8854;</button></div>
 <div id="rawmodal" class="rawmodal hidden" onclick="if(event.target===this)closeRaw()">
  <div class="rawmbox">
   <div class="rawmbar"><span>Structured event</span>
@@ -2282,7 +2282,7 @@ async function loadFacets(){
 }
 function facPick(el){
  const field=el.dataset.f, val=el.dataset.v||'';
- const tok=(/[\s()]/.test(val)?field+'=="'+val+'"':field+'=='+val);   // valor de faceta = exacto
+ const tok=fltToken(field,val,true); if(!tok) return;   // valor de faceta = igual (mismo formato que el clic en celda)
  const q=document.getElementById('q');
  q.value=(q.value.trim()+' '+tok).trim();
  doSearch();
@@ -2907,7 +2907,7 @@ function rowTrs(j){
  return h;
 }
 /* ---------- filtrar desde una celda: ⊕ / ⊖ al pasar el ratón, o Ctrl/⌘-clic
-   (con Shift = excluir). Añade campo==valor (o -campo==valor) a la consulta. */
+   (con Shift = excluir). Añade campo=valor (o -campo=valor) a la consulta. */
 const NOFILTER=new Set(['seq','asn','org','extra']);
 let ROWMAP={}, ROWIDX=null, CF_TD=null;
 function fAttr(c,html){ return NOFILTER.has(c) ? html : html.replace('<td','<td data-f="'+esc(c)+'"'); }
@@ -2922,7 +2922,7 @@ function fltToken(field,v,inc){
    else if(s.indexOf("'")<0) s="'"+s+"'";
    else return null;
   }
-  t=field+'=='+s;
+  t=field+'='+s;
  }
  return (inc?'':'-')+t;
 }
