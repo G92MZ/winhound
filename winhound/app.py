@@ -1409,6 +1409,10 @@ INDEX_HTML = r"""<!doctype html>
  .st-arc{color:var(--muted);font-weight:600}
  .bigbtn{font-size:14px;padding:12px 22px}
  .hidden{display:none}
+ #cfbar{position:absolute;z-index:60;display:flex;gap:2px;padding:2px;background:var(--panel2);border:1px solid var(--accent);border-radius:7px;box-shadow:var(--shadow)}
+ #cfbar.hidden{display:none}
+ #cfbar button{padding:0 7px;font-size:15px;line-height:20px;background:transparent;color:var(--fg);border:0;border-radius:5px;font-weight:600}
+ #cfbar button:hover{background:var(--accent);color:var(--ink)}
  mark{background:#fde68a;color:#1e293b;padding:0 2px;border-radius:2px}
  details.ingsec{margin-top:14px}
  details.ingsec>summary{cursor:pointer;font-size:13px;font-weight:600;margin:4px 0 6px;user-select:none}
@@ -1660,6 +1664,7 @@ INDEX_HTML = r"""<!doctype html>
        <tr><td><code>/mimikatz|sekurlsa/ &nbsp; command_line:/-enc\s+\w+/</code></td><td>regex over the raw record, or on one field</td></tr>
        <tr><td><code>logon_type:* &nbsp; logon_type:-</code></td><td>the field <b>has a value</b> / is <b>empty or missing</b></td></tr>
        <tr><td><code>command_line:"-enc AB"</code></td><td>quotes for values with spaces</td></tr>
+       <tr><td><code>&#8853; / &#8854; on a cell</code></td><td>hover any value in the results and click <b>&#8853;</b> to add <code>field==value</code> or <b>&#8854;</b> to exclude it. Shortcut: <b>Ctrl/⌘-click</b> the cell (<b>+Shift</b> = exclude)</td></tr>
       </table>
       <p class="hintlbl">Example: <code>eid=7045 mimikatz</code> = services installed that mention mimikatz. Field names ignore case and <code>_</code>: <code>EventID</code>/<code>event_id</code> → eid, <code>CommandLine</code> → command_line, <code>ParentImage</code> → parent_image, <code>SourceIp</code>/<code>ip</code> → src_ip, <code>Computer</code> → host, <code>Channel</code> → source. Fields: ts, source, host, eid, user, sid, src_ip, dst_ip, image, command_line, parent_image, original_filename, hashes, target_filename, image_loaded, logon_type, record_id, message. An unknown field shows a ⚠ warning and is searched as plain text. The <b>regex</b> checkbox treats the WHOLE box as one regex.</p>
      </div>
@@ -1746,7 +1751,7 @@ INDEX_HTML = r"""<!doctype html>
   </div>
 
   <div id="colspanel" class="hidden"></div>
-  <p class="muted tbnote">Free text searches the message, raw record, image, command line, parent image, hashes, file names, user, SID and IPs. Click a result (or use its <b>#</b>) to see its context: N lines or X minutes before and after by timestamp, across the whole timeline (not just that one log). The <b>#</b> is the position in the timeline (1 = oldest).</p>
+  <p class="muted tbnote">Free text searches the message, raw record, image, command line, parent image, hashes, file names, user, SID and IPs. Click a result (or use its <b>#</b>) to see its context: N lines or X minutes before and after by timestamp, across the whole timeline (not just that one log). The <b>#</b> is the position in the timeline (1 = oldest). <b>Hover a cell and click &#8853; / &#8854;</b> (or Ctrl/⌘-click it, +Shift to exclude) to add <code>field==value</code> to the query.</p>
   <div id="gotoout"></div>
   <div id="hits"></div>
  </section>
@@ -2070,6 +2075,7 @@ LIMIT 50;</textarea>
    <h3>Explorer, Time range &amp; SQL</h3>
    <ul>
     <li>Search any text (IOC, IP, hash, command, Image). Multiple words = AND. Toggle <b>regex</b>. The <b>Channel</b> dropdown filters by source, and next to it the <b>EventID</b> dropdown filters by event ID (both default to <b>(all)</b>, are populated from what's loaded, and apply to <i>both</i> the search and the timeline).</li>
+    <li><b>Filter from the results</b>: hover any cell and click <b>&#8853;</b> to add <code>field==value</code> to the query (or <b>&#8854;</b> to exclude it, <code>-field==value</code>); the search re-runs at once. Shortcut: <b>Ctrl/⌘-click</b> the cell, with <b>Shift</b> to exclude. Values with spaces are quoted for you and empty cells become <code>field:-</code>. A normal click on the row still opens its context.</li>
     <li><b>Query language</b> (Explorer search box; same in Longanizer): <code>field:value</code> and <code>field=value</code> are <b>the same</b> and spaces around them are fine (<code>eid = 6</code>). Number / code fields (<code>eid</code>, <code>logon_type</code>, <code>record_id</code>) match <b>exactly</b>; text fields match when they <b>contain</b> the value. <code>==</code> forces an exact match on text (<code>image==C:\Windows\System32\cmd.exe</code>); wildcards <code>*</code>/<code>?</code> match the whole value (<code>image:*\powershell.exe</code>); lists <code>eid:4624,4625</code>; comparisons <code>eid&gt;=4600</code>, <code>ts&gt;=2026-10-01</code>, and <code>ts:2026-10-01</code> for a whole day. Combine with <b>AND</b> (default, words separated by spaces), <b>OR</b>, <b>NOT</b> and <b>( )</b>: <code>(eid=4624 OR eid=4625) logon_type:3 NOT user:SYSTEM</code>. Exclude also with <code>-term</code> or <code>field!=value</code>. Quotes give a literal phrase (<code>"access is denied"</code>). Regex per term: <code>/regex/</code> over the raw record, <code>field:/regex/</code> on one field. <code>field:*</code> = has a value, <code>field:-</code> = empty. Field names ignore case and <code>_</code> (<code>EventID</code>, <code>event_id</code> → eid; <code>CommandLine</code> → command_line) and EventData keys work directly (<code>TargetObject:Run</code>; <code>x:Key</code> forces it). An unknown field shows a ⚠ warning instead of failing silently, and malformed queries (unclosed quote or parenthesis, <code>OR</code> at the end) say what is wrong. The <b>regex</b> checkbox treats the whole box as one regex. A <b>«How to filter»</b> cheatsheet sits under the box, which also <b>autocompletes field names</b>.</li>
     <li><b>Facets</b>: pick a field and click <b>Top values</b> for its most frequent values over the current results — click one to add it to the search (categorical fields like eid, user, image, src_ip, asn, org are the useful ones). The list is scrollable and has a <b>✕ hide</b>; it follows the <b>current view</b> — the <b>timeline</b> facets over everything (its channel/time filters), a <b>search</b> over its matches. <b>Recent &amp; saved searches</b> keeps your last queries and named ones (in this browser).</li>
     <li><b>Time range</b> (From / To, UTC) applies to <i>both</i> search and the full timeline, to scope a window.</li>
@@ -2129,6 +2135,7 @@ FROM events WHERE eid=13 ORDER BY ts;</pre>
   </div>
  </section>
 </main>
+<div id="cfbar" class="hidden"><button onclick="cfAct(event,1)" title="Filter for this value (field==value) · shortcut: Ctrl/⌘-click the cell">&#8853;</button><button onclick="cfAct(event,0)" title="Filter out this value · shortcut: Ctrl/⌘+Shift-click the cell">&#8854;</button></div>
 <div id="rawmodal" class="rawmodal hidden" onclick="if(event.target===this)closeRaw()">
  <div class="rawmbox">
   <div class="rawmbar"><span>Structured event</span>
@@ -2648,7 +2655,7 @@ function parseExtra(row,idx){ try{ return row[idx.extra]?JSON.parse(row[idx.extr
 function rowCells(row,idx){
  const cols=renderCols();
  const needX=cols.some(isX); const xobj=needX?parseExtra(row,idx):null;
- return actCell(row[idx.id])+cols.map(c=>tdCell(cellVal(row,idx,c,xobj), colClass(c))).join('');
+ return actCell(row[idx.id])+cols.map(c=>fAttr(c,tdCell(cellVal(row,idx,c,xobj), colClass(c)))).join('');
 }
 /* portapapeles robusto (clipboard API con fallback execCommand para http) */
 async function copyText(t){
@@ -2891,14 +2898,74 @@ function attackDrill(el){ const ids=(el.dataset.ids||'').split(',').filter(Boole
 /* filas <tr> clicables (abren el contexto del evento) */
 function rowTrs(j){
  const idx=Object.fromEntries(j.columns.map((c,i)=>[c,i]));
+ ROWIDX=idx;
  let h='';
  for(const row of j.rows){
-  h+='<tr class="hitrow" onclick="openCtx('+row[idx.id]+')">'+rowCells(row,idx)+'</tr>';
+  ROWMAP[row[idx.id]]=row;
+  h+='<tr class="hitrow" data-id="'+row[idx.id]+'" onclick="rowClick(event,'+row[idx.id]+')">'+rowCells(row,idx)+'</tr>';
  }
  return h;
 }
+/* ---------- filtrar desde una celda: ⊕ / ⊖ al pasar el ratón, o Ctrl/⌘-clic
+   (con Shift = excluir). Añade campo==valor (o -campo==valor) a la consulta. */
+const NOFILTER=new Set(['seq','asn','org','extra']);
+let ROWMAP={}, ROWIDX=null, CF_TD=null;
+function fAttr(c,html){ return NOFILTER.has(c) ? html : html.replace('<td','<td data-f="'+esc(c)+'"'); }
+function fltToken(field,v,inc){
+ let t;
+ if(v===null||v===undefined||String(v)==='') t=field+':-';
+ else if(typeof v==='object') return null;
+ else{
+  let s=String(v);
+  if(/[\s()"']/.test(s)){
+   if(s.indexOf('"')<0) s='"'+s+'"';
+   else if(s.indexOf("'")<0) s="'"+s+"'";
+   else return null;
+  }
+  t=field+'=='+s;
+ }
+ return (inc?'':'-')+t;
+}
+function addFilter(field,v,inc){
+ const tok=fltToken(field,v,inc);
+ if(!tok){ alert('This value cannot be added as a filter (it is an object or contains both kinds of quotes).'); return; }
+ const q=document.getElementById('q');
+ const cur=q.value.trim();
+ if((' '+cur+' ').indexOf(' '+tok+' ')<0) q.value=(cur+' '+tok).trim();
+ cfHide();
+ doSearch();
+}
+function filterFromTd(td,inc){
+ if(!td||!td.dataset.f) return false;
+ const tr=td.closest('tr'); const row=tr?ROWMAP[tr.dataset.id]:null;
+ if(!row||!ROWIDX) return false;
+ const c=td.dataset.f;
+ addFilter(c, cellVal(row,ROWIDX,c,isX(c)?parseExtra(row,ROWIDX):null), inc);
+ return true;
+}
+function rowClick(ev,id){
+ if((ev.ctrlKey||ev.metaKey) && filterFromTd(ev.target.closest('td'), !ev.shiftKey)){ ev.preventDefault(); return; }
+ openCtx(id);
+}
+function cfAct(ev,inc){ ev.stopPropagation(); filterFromTd(CF_TD,inc); }
+function cfHide(){ const b=document.getElementById('cfbar'); if(b)b.classList.add('hidden'); CF_TD=null; }
+document.addEventListener('mouseover',function(e){
+ const bar=document.getElementById('cfbar'); if(!bar||!e.target.closest) return;
+ if(e.target.closest('#cfbar')) return;
+ const td=e.target.closest('tr.hitrow td[data-f]');
+ if(!td){ if(CF_TD) cfHide(); return; }
+ if(td===CF_TD) return;
+ CF_TD=td;
+ const r=td.getBoundingClientRect(), w=td.closest('.wrap');
+ const right=w?Math.min(r.right,w.getBoundingClientRect().right-14):r.right;
+ bar.classList.remove('hidden');
+ bar.style.top=(window.scrollY+r.top+(r.height-bar.offsetHeight)/2)+'px';
+ bar.style.left=(window.scrollX+Math.max(r.left,right-bar.offsetWidth-3))+'px';
+});
+document.addEventListener('scroll',cfHide,true);
 /* tabla completa con cabecera y un tbody con id para paginar */
 function tableHtml(j,bodyId){
+ ROWMAP={}; cfHide();
  return '<div class="wrap wide"><table>'+headHtml(true)+'<tbody id="'+bodyId+'">'+rowTrs(j)+'</tbody></table></div>';
 }
 

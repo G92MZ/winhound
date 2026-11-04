@@ -35,7 +35,7 @@ python run.py --db case.duckdb  # keep the case in a file instead of memory
 ## 🧭 How you use it
 
 1. **📥 Load** — drop `.evtx` files or an archive (extracted recursively). Sysmon & native channels are normalized.
-2. **🔎 Explore** — browse the timeline or search. One query language in both apps: `field:value` (= `field=value`), `AND` / `OR` / `NOT`, `( )`, `-term`, wildcards, lists (`eid:4624,4625`), comparisons (`eid>=4600`) and `/regex/` — e.g. `EventID = 7045 mimikatz`. Bad fields or syntax get a clear warning. The box autocompletes field names.
+2. **🔎 Explore** — browse the timeline or search. One query language in both apps: `field:value` (= `field=value`), `AND` / `OR` / `NOT`, `( )`, `-term`, wildcards, lists (`eid:4624,4625`), comparisons (`eid>=4600`) and `/regex/` — e.g. `EventID = 7045 mimikatz`. Bad fields or syntax get a clear warning. Hover any value in the results and click ⊕ / ⊖ (or Ctrl/⌘-click) to add `field==value` to the query. The box autocompletes field names.
 3. **🛡️ Hunt** — run your **Sigma** rules and **LOL** packs (LOLBAS/LOLDrivers/LOLRMM/HijackLibs/LOTTunnels) with live progress; see the ATT&CK coverage of the case.
 4. **🌲 Dig in** — process tree, logons, persistence, PowerShell script blocks, network.
 5. **📌 Triage & report** — mark events, then export a self‑contained HTML case report.
