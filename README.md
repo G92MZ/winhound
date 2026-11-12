@@ -4,10 +4,10 @@
 
 **Forensic Windows EVTX analyzer — ingest event logs, query with SQL, hunt with Sigma.**
 
-Feed it `.evtx` files (even straight from a `.zip`/archive), open the browser,
-and investigate: timeline, full‑text + field search, Sigma & LOL detections,
-process tree, logons, persistence, IOC extraction & sweep, ATT&CK and a
-one‑click case report. Runs **100% offline**.
+Feed it `.evtx` files (even straight from a `.zip`), open the browser, and investigate: one
+timeline in UTC, full‑text and field search, Sigma and LOL detections, process trees, logons,
+persistence, PowerShell, network, IOCs, triage marks and a one‑click case report.
+**Runs 100% locally and offline.**
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-DuckDB-009688)
@@ -17,94 +17,53 @@ one‑click case report. Runs **100% offline**.
 
 ---
 
+<p align="center">
+  <img src="docs/assets/shots/home/explorer.webp" alt="The Explorer: every EVTX record on one timeline" width="100%">
+</p>
+
+<p align="center">
+  <b>📚 Documentation: <a href="https://g92mz.github.io/winhound/">g92mz.github.io/winhound</a></b><br>
+  <sub>every tab explained, with screenshots</sub>
+</p>
+
 ## 🚀 Quickstart
+
+Python **3.11+** with `pip`, on Windows, Linux or macOS.
 
 ```bash
 pip install -r requirements.txt
-python run.py                 # open http://127.0.0.1:8000 (or http://<this-pc-ip>:8000 from another machine)
+python run.py                 # then open http://127.0.0.1:8000 (or http://<this-pc-ip>:8000)
 ```
 
-```bash
-python run.py --port 8001     # run next to Longanizer on another port
-python run.py --host 127.0.0.1  # only reachable from this machine
-python run.py --db case.duckdb  # keep the case in a file instead of memory
-```
+`python run.py` checks for updates on every start (`python update.py` does it on demand), keeping
+your cases and GeoIP data. Options, loading and cases in
+[Getting started](https://g92mz.github.io/winhound/getting-started/).
 
-> 🧪 **Try it now:** 562 attack EVTX ship in `samples/evtx-attack-samples.zip`.
-> Unzip it and load the folder, or point the loader straight at the `.zip`.
+## ✨ What it does
 
-## 🧭 How you use it
+- 🪟 **EVTX ingest** — any channel, Sysmon-aware, from files, folders or archives, with live progress.
+- 🔎 **Search** — one query language shared with Longanizer (`field=value` equal, `field:value` contains, `AND` / `OR` / `NOT`), facets, and click a cell to filter by it.
+- 🛡️ **Sigma and LOL** — your rules and LOLBAS / LOLDrivers / LOLRMM / HijackLibs / LOTTunnels packs, lookalike binaries and the case's ATT&CK coverage.
+- 🌲 **Hunting** — process trees, logons (Kerberos, NTLM, RDP), persistence, PowerShell script blocks, network.
+- 🧷 **IOCs** — indicators discovered in the data, and a sweep for the ones you paste; GeoIP / ASN for public IPs.
+- 📌 **Triage and report** — mark events, then export a self-contained HTML case report.
+- 🤖 **AI and MCP** — ask about the case through your AI provider, a local model or an MCP client, read-only.
 
-1. **📥 Load** — drop `.evtx` files or an archive (extracted recursively). Sysmon & native channels are normalized.
-2. **🔎 Explore** — browse the timeline or search. One query language in both apps: `field=value` (equal) and `field:value` (contains), `AND` / `OR` / `NOT`, `( )`, `-term`, wildcards, lists (`eid:4624,4625`), comparisons (`eid>=4600`) and `/regex/` — e.g. `EventID = 7045 mimikatz`. Bad fields or syntax get a clear warning. Hover any value in the results and click ⊕ / ⊖ (or Ctrl/⌘-click) to add `field=value` to the query. The box autocompletes field names.
-3. **🛡️ Hunt** — run your **Sigma** rules and **LOL** packs (LOLBAS/LOLDrivers/LOLRMM/HijackLibs/LOTTunnels) with live progress; see the ATT&CK coverage of the case.
-4. **🌲 Dig in** — process tree, logons, persistence, PowerShell script blocks, network.
-5. **📌 Triage & report** — mark events, then export a self‑contained HTML case report.
+## 🧪 Samples
 
-## 📸 In action
+562 public attack EVTX ship in `samples/evtx-attack-samples.zip`
+([EVTX-ATTACK-SAMPLES](https://github.com/sbousseaden/EVTX-ATTACK-SAMPLES) by @sbousseaden).
+Point the loader straight at the `.zip`, or unzip it and load the folder.
 
-> Loaded with EVTX from the bundled `samples/evtx-attack-samples.zip` (Security, Sysmon, PowerShell…).
+## 📝 Principles
 
-**Explorer — full EVTX timeline (channel, EventID, host, user…)**
-
-![Explorer](docs/img/01-explorer.png)
-
-**Search — `image:powershell`, `eid=4624`, `/regex/` and `-exclude`**
-
-![Search](docs/img/02-search.png)
-
-**Overview — Windows dashboard (top EventIDs, top images, hosts, users)**
-
-![Dashboard](docs/img/03-dashboard.png)
-
-**Sigma — your rules run over the EVTX, with “what matched” per hit**
-
-![Sigma](docs/img/04-sigma.png)
-
-**IOCs — indicators discovered in the data, grouped into collapsible cards and exportable**
-
-![IOCs](docs/img/05-iocs.png)
-
-## ✨ What's inside
-
-| | |
-|---|---|
-| 🪟 **EVTX ingest** | any channel, Sysmon‑aware, recursive from archives |
-| 🔎 **Smart search** | `field:value` / `=exact` / `!=` / `-NOT` / `/regex/` / `field:*` exists · field autocomplete · facets |
-| 🛡️ **Sigma engine** | product‑exclusion filter, correlation, "what matched", per‑rule YAML & review buttons |
-| 🧰 **LOL packs** | LOLBAS · LOLDrivers · LOLRMM · HijackLibs · LOTTunnels — with a top‑indicator chart |
-| 🥸 **Lookalike** | masquerading binaries by edit distance across all sources |
-| 🗺️ **ATT&CK matrix** | coverage of the case built from Sigma hits |
-| 🌲 **Hunting views** | process tree (from a PID), logons (Kerberos/NTLM/RDP), persistence, PowerShell, network |
-| 🧷 **IOC extractor** | discovers the IOCs present in the EVTX — IPs, domains, URLs, emails, user agents, hashes/imphash, file paths, registry keys, named pipes, services, scheduled tasks — in collapsible per‑type cards, ASN‑tagged, CSV/JSON export |
-| 🎯 **IOC sweep** | paste IOCs and sweep the whole dataset, export CSV |
-| 🌐 **GeoIP / ASN** | public IPs tagged with country + Org/ISP (offline DB‑IP Lite) |
-| ⏱️ **Live ingest** | progress with start / elapsed / ETA |
-| 🤖 **AI & MCP** | optional AI tab and an MCP server to query the case from Claude |
-
-## 📝 Notes
-
-- Everything runs locally — no cloud, no outbound calls except the optional GeoIP database download.
-- Cases are DuckDB files under `casos/` (git‑ignored). Use `--db` to pin one.
-- Sigma rules without `product: windows` still run (multiplatform); only rules with a non‑Windows product are skipped.
-
-## 🔄 Updating
-
-Grab the latest version without git — the updater checks GitHub and updates the
-app in place, **keeping your cases and GeoIP databases** (`casos/`, `geoip_data/`):
-
-```bash
-python update.py            # check for a new version and update (asks first)
-python update.py --check    # only check, change nothing
-python update.py --yes      # update without asking
-```
-
-(Cloned with git? `git pull` works too.)
+- **Local and offline** — no cloud and no outbound calls, except the optional GeoIP download and the AI endpoint you configure.
+- **Your data stays yours** in `casos/` and `geoip_data/`, git-ignored and kept across updates.
+- **Bring your own rules** — WinHound ships no Sigma or LOL rules.
+- **No login** — the web UI has no authentication; keep it on a trusted network or use `--host 127.0.0.1`.
 
 ## 📜 License
 
-Licensed under the **Apache License 2.0** — free to use, modify and distribute
-(including commercially); just keep the copyright and `NOTICE`, and state your
-changes. See [`LICENSE`](LICENSE).
+Licensed under the **Apache License 2.0** — see [`LICENSE`](LICENSE) and `NOTICE`.
 
 © 2026 Gregorio Moreno (**gmzpt**)

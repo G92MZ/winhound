@@ -125,7 +125,7 @@ if _env_db:
     AUTO_PENDING = False
     STORE = EventStore(DB_PATH)
     if DB_PATH != ":memory:":
-        print(f"[loganalyzer] Caso: {os.path.abspath(DB_PATH)}", file=sys.stderr)
+        print(f"[winhound] Caso: {os.path.abspath(DB_PATH)}", file=sys.stderr)
 else:
     # por defecto: en memoria y "pendiente"; se materializa a fichero al 1er log
     DB_PATH = ":memory:"
@@ -152,7 +152,7 @@ def _ensure_persistent() -> None:
         old.close()
     except Exception:  # noqa: BLE001
         pass
-    print(f"[loganalyzer] Caso guardado en: {os.path.abspath(path)}",
+    print(f"[winhound] Caso guardado en: {os.path.abspath(path)}",
           file=sys.stderr)
 
 app = FastAPI(title="Longanizer", version="1.0")
@@ -640,15 +640,15 @@ def mcp_info():
             "<div class=\"err\" style=\"white-space:normal\">There is no case file in use "
             "right now, so the MCP server <b>would not see</b> this data." + extra +
             " To use MCP, load logs (the file will be created) or start with a fixed one: "
-            "<code>DUCKDB_PATH=/ruta/al/caso.duckdb python -m loganalyzer.app</code> "
+            "<code>python run.py --db /path/to/case.duckdb</code> "
             "(or CLI ingest with <code>--db</code>) and point MCP at the same "
             "file.</div>")
     claude_json = (
         '{\n'
         '  "mcpServers": {\n'
-        '    "loganalyzer-forense": {\n'
+        '    "winhound": {\n'
         '      "command": "python",\n'
-        '      "args": ["-m", "loganalyzer.mcp_server"],\n'
+        '      "args": ["-m", "winhound.mcp_server"],\n'
         '      "env": { "DUCKDB_PATH": "' + db_show + '" }\n'
         '    }\n'
         '  }\n'
@@ -659,7 +659,7 @@ def mcp_info():
    in natural language from your own client, without the web API.</p>
    {persist_warn}
    <h3>1 · Start the MCP server (stdio)</h3>
-   <pre>DUCKDB_PATH={db_show} python -m loganalyzer.mcp_server</pre>
+   <pre>DUCKDB_PATH={db_show} python -m winhound.mcp_server</pre>
    <p class="muted">Share the <b>same DuckDB file</b> as the web/ingest so it
    sees the same events.</p>
    <h3>2 · Claude Desktop</h3>
@@ -667,7 +667,7 @@ def mcp_info():
    (Settings &rarr; Developer &rarr; Edit Config) and add:</p>
    <pre>{esc_py(claude_json)}</pre>
    <h3>2 · (alternative) Claude Code</h3>
-   <pre>claude mcp add loganalyzer-forense -e DUCKDB_PATH={db_show} -- python -m loganalyzer.mcp_server</pre>
+   <pre>claude mcp add winhound -e DUCKDB_PATH={db_show} -- python -m winhound.mcp_server</pre>
    <h3>3 · Available tools</h3>
    <ul>
     <li><code>buscar_logs(q, regex?, source?, limit?)</code> — text/IOC or regex search.</li>
@@ -1652,14 +1652,14 @@ INDEX_HTML = r"""<!doctype html>
       <table>
        <tr><td><code>mimikatz lsass</code></td><td>free text; several words = <b>AND</b> (all must appear)</td></tr>
        <tr><td><code>"access is denied"</code></td><td>exact phrase (quotes). Quotes also let you search the words and / or / not</td></tr>
-       <tr><td><code>user=SYSTEM &nbsp; image=C:\Windows\System32\cmd.exe</code></td><td><b><code>=</code> means equal</b>: the exact value (case-insensitive). This is what clicking &#8853; adds</td></tr>
+       <tr><td><code>user=LocalSystem &nbsp; image=C:\Windows\System32\cmd.exe</code></td><td><b><code>=</code> means equal</b>: the exact value (case-insensitive). This is what clicking &#8853; adds</td></tr>
        <tr><td><code>image:powershell &nbsp; command_line:-enc</code></td><td><b><code>:</code> means contains</b> (case-insensitive). It also takes wildcards and regex, see below</td></tr>
        <tr><td><code>eid=4688 &nbsp; eid:4688 &nbsp; EventID = 4688</code></td><td>numbers and codes (eid, logon_type, record_id) are always exact with either operator, so <code>eid:6</code> never matches 4661. Spaces around the operator are fine</td></tr>
        <tr><td><code>eid=4624,4625</code></td><td>any of several numbers / codes (commas)</td></tr>
        <tr><td><code>image:*\powershell.exe</code></td><td>wildcards <code>*</code> <code>?</code> over the whole value (here: ends with)</td></tr>
        <tr><td><code>eid&gt;=4600 &nbsp; ts&gt;=2026-10-01</code></td><td>compare numbers and dates with <code>&gt; &gt;= &lt; &lt;=</code>. <code>ts:2026-10-01</code> = that whole day</td></tr>
        <tr><td><code>eid=4624 OR eid=4625</code></td><td><b>AND</b> (default), <b>OR</b>, <b>NOT</b> and <b>( )</b>: <code>(eid=4624 OR eid=4625) logon_type=3</code></td></tr>
-       <tr><td><code>NOT user=SYSTEM &nbsp; -user=SYSTEM &nbsp; user!=SYSTEM</code></td><td><b>exclude</b> — three equivalent forms; <code>-word</code> works on free text too</td></tr>
+       <tr><td><code>NOT user:SYSTEM &nbsp; -user:SYSTEM &nbsp; user!=LocalSystem</code></td><td><b>exclude</b> — three equivalent forms; <code>-word</code> works on free text too</td></tr>
        <tr><td><code>TargetObject:Run &nbsp; x:TargetObject:Run</code></td><td>EventData keys work by name; <code>x:</code> forces an EventData key (exact case)</td></tr>
        <tr><td><code>/mimikatz|sekurlsa/ &nbsp; command_line:/-enc\s+\w+/</code></td><td>regex over the raw record, or on one field (with <code>:</code>)</td></tr>
        <tr><td><code>logon_type:* &nbsp; logon_type:-</code></td><td>the field <b>has a value</b> / is <b>empty or missing</b></td></tr>
@@ -2063,7 +2063,7 @@ LIMIT 50;</textarea>
   <div class="help">
    <p>EVTX records are normalized into one <code>events</code> table in <b>UTC</b>
    (System fields to columns, EventData promoted or kept in <code>extra</code>, full
-   record in <code>raw</code>). For a full walkthrough see the separate user guide.</p>
+   record in <code>raw</code>). Full documentation, tab by tab with screenshots: <a href="https://g92mz.github.io/winhound/" target="_blank" rel="noopener">g92mz.github.io/winhound</a>.</p>
 
    <h3>Load</h3>
    <ul>
@@ -2076,7 +2076,7 @@ LIMIT 50;</textarea>
    <ul>
     <li>Search any text (IOC, IP, hash, command, Image). Multiple words = AND. Toggle <b>regex</b>. The <b>Channel</b> dropdown filters by source, and next to it the <b>EventID</b> dropdown filters by event ID (both default to <b>(all)</b>, are populated from what's loaded, and apply to <i>both</i> the search and the timeline).</li>
     <li><b>Filter from the results</b>: hover any cell and click <b>&#8853;</b> to add <code>field=value</code> (equal) to the query (or <b>&#8854;</b> to exclude it, <code>-field=value</code>); the search re-runs at once. Shortcut: <b>Ctrl/⌘-click</b> the cell, with <b>Shift</b> to exclude. Values with spaces are quoted for you and empty cells become <code>field:-</code>. A normal click on the row still opens its context.</li>
-    <li><b>Query language</b> (Explorer search box; same in Longanizer). Two field operators: <b><code>field=value</code> means equal</b> (the exact value, case-insensitive: <code>user=SYSTEM</code>) and <b><code>field:value</code> means contains</b> (<code>image:powershell</code>). Numbers and codes (<code>eid</code>, <code>logon_type</code>, <code>record_id</code>) are always exact with either one, so <code>eid:6</code> and <code>eid=6</code> are the same and never match 4661. Spaces around the operator are fine (<code>EventID = 6</code>). With <code>:</code> you also get wildcards (<code>image:*\powershell.exe</code>), regex (<code>command_line:/-enc\s+\w+/</code>), <code>field:*</code> (has a value) and <code>field:-</code> (empty). Lists of numbers/codes: <code>eid=4624,4625</code>; comparisons: <code>eid&gt;=4600</code>, <code>ts&gt;=2026-10-01</code>; <code>ts:2026-10-01</code> = a whole day. Combine with <b>AND</b> (default, words separated by spaces), <b>OR</b>, <b>NOT</b> and <b>( )</b>: <code>(eid=4624 OR eid=4625) logon_type=3 NOT user=SYSTEM</code>. Exclude also with <code>-term</code> or <code>field!=value</code> (not equal). Quotes give a literal phrase (<code>"access is denied"</code>); <code>/regex/</code> alone searches the raw record. Field names ignore case and <code>_</code> (<code>EventID</code>, <code>event_id</code> → eid; <code>CommandLine</code> → command_line) and EventData keys work directly (<code>TargetObject:Run</code>; <code>x:Key</code> forces it). An unknown field shows a ⚠ warning instead of failing silently, and malformed queries (unclosed quote or parenthesis, <code>OR</code> at the end) say what is wrong. The <b>regex</b> checkbox treats the whole box as one regex. A <b>«How to filter»</b> cheatsheet sits under the box, which also <b>autocompletes field names</b>. (<code>==</code> still works as a synonym of <code>=</code>.)</li>
+    <li><b>Query language</b> (Explorer search box; same in Longanizer). Two field operators: <b><code>field=value</code> means equal</b> (the exact value, case-insensitive: <code>user=LocalSystem</code>) and <b><code>field:value</code> means contains</b> (<code>image:powershell</code>). Numbers and codes (<code>eid</code>, <code>logon_type</code>, <code>record_id</code>) are always exact with either one, so <code>eid:6</code> and <code>eid=6</code> are the same and never match 4661. Spaces around the operator are fine (<code>EventID = 6</code>). With <code>:</code> you also get wildcards (<code>image:*\powershell.exe</code>), regex (<code>command_line:/-enc\s+\w+/</code>), <code>field:*</code> (has a value) and <code>field:-</code> (empty). Lists of numbers/codes: <code>eid=4624,4625</code>; comparisons: <code>eid&gt;=4600</code>, <code>ts&gt;=2026-10-01</code>; <code>ts:2026-10-01</code> = a whole day. Combine with <b>AND</b> (default, words separated by spaces), <b>OR</b>, <b>NOT</b> and <b>( )</b>: <code>(eid=4624 OR eid=4625) logon_type=3 NOT user:SYSTEM</code>. Exclude also with <code>-term</code> or <code>field!=value</code> (not equal). Quotes give a literal phrase (<code>"access is denied"</code>); <code>/regex/</code> alone searches the raw record. Field names ignore case and <code>_</code> (<code>EventID</code>, <code>event_id</code> → eid; <code>CommandLine</code> → command_line) and EventData keys work directly (<code>TargetObject:Run</code>; <code>x:Key</code> forces it). An unknown field shows a ⚠ warning instead of failing silently, and malformed queries (unclosed quote or parenthesis, <code>OR</code> at the end) say what is wrong. The <b>regex</b> checkbox treats the whole box as one regex. A <b>«How to filter»</b> cheatsheet sits under the box, which also <b>autocompletes field names</b>. (<code>==</code> still works as a synonym of <code>=</code>.)</li>
     <li><b>Facets</b>: pick a field and click <b>Top values</b> for its most frequent values over the current results — click one to add it to the search (categorical fields like eid, user, image, src_ip, asn, org are the useful ones). The list is scrollable and has a <b>✕ hide</b>; it follows the <b>current view</b> — the <b>timeline</b> facets over everything (its channel/time filters), a <b>search</b> over its matches. <b>Recent &amp; saved searches</b> keeps your last queries and named ones (in this browser).</li>
     <li><b>Time range</b> (From / To, UTC) applies to <i>both</i> search and the full timeline, to scope a window.</li>
     <li>Click a row for its <b>context</b> (±N events). The <b>&#10697;</b> button on every row — and in the context header — copies the <b>full event JSON</b> to the clipboard; the <b>Structured event</b> modal shows the whole record to read and copy in full.</li>

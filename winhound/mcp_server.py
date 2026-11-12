@@ -6,7 +6,7 @@ lenguaje natural sin pasar por la API web.
 
 Uso (stdio, lo habitual para Claude Desktop/Code):
 
-    DUCKDB_PATH=/ruta/al/caso.duckdb python -m loganalyzer.mcp_server
+    DUCKDB_PATH=/ruta/al/caso.duckdb python -m winhound.mcp_server
 
 Comparte el MISMO almacén DuckDB que la web mediante la variable de entorno
 `DUCKDB_PATH`. Si usas `:memory:` (por defecto) cada proceso tiene sus propios
@@ -33,7 +33,7 @@ _DB = os.environ.get("DUCKDB_PATH", ":memory:")
 STORE = EventStore(_DB)
 MAX_ROWS = 200
 
-mcp = FastMCP("loganalyzer-forense")
+mcp = FastMCP("winhound")
 
 
 def _trim(res: dict) -> dict:
