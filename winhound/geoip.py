@@ -119,7 +119,7 @@ def _download_one(kind: str, dest: str) -> str:
     for ym in _recent_months():
         url = _BASE.format(kind=kind, ym=ym)
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "loganalyzer"})
+            req = urllib.request.Request(url, headers={"User-Agent": "winhound"})
             data = urllib.request.urlopen(req, timeout=120).read()
             raw = gzip.decompress(data)
             with open(dest, "wb") as fh:
