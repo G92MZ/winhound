@@ -66,4 +66,4 @@ Point the loader straight at the `.zip`, or unzip it and load the folder.
 
 Licensed under the **Apache License 2.0** — see [`LICENSE`](LICENSE) and `NOTICE`.
 
-© 2026 Gregorio Moreno (**gmzpt**)
+© 2026 (**gmzpt**)
